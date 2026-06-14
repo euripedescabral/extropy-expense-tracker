@@ -76,7 +76,7 @@ After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_
 
 ## Submission URLs
 
-- GitHub Repository URL: pending
+- GitHub Repository URL: https://github.com/euripedescabral/extropy-expense-tracker
 - Live Application URL: pending
 - API URL: pending
 
