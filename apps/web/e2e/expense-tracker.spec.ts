@@ -112,11 +112,16 @@ test.describe("expense tracker critical flows", () => {
   test("signs up, adds an expense, filters it, and sees reports update", async ({ page }) => {
     await page.goto("/");
 
+    await expect(page.getByText("Financial command center")).toBeVisible();
+    await expect(page.getByText("Track spending, shape categories, and turn daily expenses into usable financial clarity.")).toBeVisible();
+
     await page.getByLabel("Email").fill("ada@example.com");
     await page.getByLabel("Password").fill("CorrectHorse123!");
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page.getByRole("heading", { name: "Expenses" })).toBeVisible();
+    await expect(page.getByText("Personal finance ledger")).toBeVisible();
+    await expect(page.getByText("June cash pulse")).toBeVisible();
     await expect(page.getByTestId("expense-category")).toContainText("Food");
 
     await page.getByLabel("Amount").fill("12.30");

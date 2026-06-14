@@ -88,10 +88,15 @@ After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_
 ## Demo Assets
 
 - Demo recording: [docs/assets/demo-flow.webm](docs/assets/demo-flow.webm)
+- UI flow recording, signup/add/filter: [docs/assets/ui-flow-signup-add-filter.webm](docs/assets/ui-flow-signup-add-filter.webm)
+- UI flow recording, category/delete: [docs/assets/ui-flow-category-delete.webm](docs/assets/ui-flow-category-delete.webm)
+- UI flow recording, edit/date filter: [docs/assets/ui-flow-edit-date-filter.webm](docs/assets/ui-flow-edit-date-filter.webm)
 - Desktop dashboard: [docs/assets/demo-dashboard-desktop.png](docs/assets/demo-dashboard-desktop.png)
 - Food filter: [docs/assets/demo-filter-food.png](docs/assets/demo-filter-food.png)
 - Dashboard after add: [docs/assets/demo-dashboard-after-add.png](docs/assets/demo-dashboard-after-add.png)
 - Mobile dashboard: [docs/assets/demo-dashboard-mobile.png](docs/assets/demo-dashboard-mobile.png)
+- Refreshed UI desktop dashboard: [docs/assets/vault-theme-dashboard-desktop.png](docs/assets/vault-theme-dashboard-desktop.png)
+- Refreshed UI mobile dashboard: [docs/assets/vault-theme-dashboard-mobile.png](docs/assets/vault-theme-dashboard-mobile.png)
 - Full audit notes: [docs/audit-report.md](docs/audit-report.md)
 
 The reusable demo login is documented in [docs/aws-operations.md](docs/aws-operations.md#reusable-smoke-login).

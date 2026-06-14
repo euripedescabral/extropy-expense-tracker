@@ -96,6 +96,7 @@ export const App = () => {
     ...item,
     categoryName: categoryNameById[item.categoryId] ?? item.categoryId
   }));
+  const topCategory = breakdown[0]?.categoryName ?? "No spend yet";
   const report = buildReportViewModel({
     monthlyTotalCents,
     breakdown,
@@ -176,7 +177,29 @@ export const App = () => {
   if (!user) {
     return (
       <main className="auth-shell">
+        <section className="auth-hero" aria-label="Product overview">
+          <span className="eyebrow">Financial command center</span>
+          <h1>Control your expenses in one place</h1>
+          <p>
+            Track spending, shape categories, and turn daily expenses into usable financial clarity.
+          </p>
+          <div className="hero-ledger" aria-hidden="true">
+            <div>
+              <span>Monthly visibility</span>
+              <strong>$12.4k</strong>
+            </div>
+            <div>
+              <span>Auto reports</span>
+              <strong>6</strong>
+            </div>
+            <div>
+              <span>Categories</span>
+              <strong>Live</strong>
+            </div>
+          </div>
+        </section>
         <section className="auth-panel" aria-labelledby="auth-title">
+          <span className="panel-kicker">Secure workspace</span>
           <h1 id="auth-title">Expense Tracker</h1>
           <label>
             Email
@@ -207,17 +230,49 @@ export const App = () => {
 
   return (
     <main className="app-shell">
-      <header>
+      <header className="app-header">
         <div>
+          <span className="eyebrow">Personal finance ledger</span>
           <p>{user.email}</p>
           <h1>Expenses</h1>
         </div>
-        <strong data-testid="monthly-total">{report.monthlyTotal}</strong>
+        <div className="header-actions" aria-label="Dashboard summary">
+          <span>{visibleExpenses.length} transactions</span>
+          <span>{categories.length} categories</span>
+        </div>
       </header>
+
+      <section className="hero-panel" aria-labelledby="dashboard-title">
+        <div>
+          <span className="panel-kicker">June cash pulse</span>
+          <h2 id="dashboard-title">{report.monthlyTotal}</h2>
+          <p>Live total for the selected filters, backed by your expense ledger.</p>
+        </div>
+        <div className="metric-strip">
+          <div>
+            <span>Visible expenses</span>
+            <strong>{visibleExpenses.length}</strong>
+          </div>
+          <div>
+            <span>Top category</span>
+            <strong>{topCategory}</strong>
+          </div>
+          <div>
+            <span>Report rows</span>
+            <strong>{report.rows.length}</strong>
+          </div>
+        </div>
+        <strong className="sr-only" data-testid="monthly-total">
+          {report.monthlyTotal}
+        </strong>
+      </section>
 
       <section className="layout-grid">
         <form className="panel" onSubmit={(event) => event.preventDefault()}>
-          <h2>Add expense</h2>
+          <div className="panel-heading">
+            <span className="panel-kicker">Transaction intake</span>
+            <h2>Add expense</h2>
+          </div>
           <label>
             Amount
             <input
@@ -267,7 +322,10 @@ export const App = () => {
         </form>
 
         <section className="panel">
-          <h2>Categories</h2>
+          <div className="panel-heading">
+            <span className="panel-kicker">Ledger structure</span>
+            <h2>Categories</h2>
+          </div>
           <label>
             New category
             <input
@@ -282,7 +340,10 @@ export const App = () => {
 
         <section className="panel wide">
           <div className="toolbar">
-            <h2>Expense list</h2>
+            <div className="panel-heading">
+              <span className="panel-kicker">Filtered ledger</span>
+              <h2>Expense list</h2>
+            </div>
             <label>
               Filter category
               <select
@@ -325,7 +386,7 @@ export const App = () => {
                     <strong data-testid="expense-description">{expense.description}</strong>
                     <small>{categoryNameById[expense.categoryId] ?? expense.categoryId}</small>
                   </span>
-                  <span>{formatCents(expense.amountCents)}</span>
+                  <span className="expense-amount">{formatCents(expense.amountCents)}</span>
                   <button type="button" onClick={() => startEditingExpense(expense)}>
                     Edit {expense.description}
                   </button>
@@ -339,14 +400,24 @@ export const App = () => {
         </section>
 
         <section className="panel" data-testid="category-breakdown">
-          <h2>Reports</h2>
+          <div className="panel-heading">
+            <span className="panel-kicker">Spend intelligence</span>
+            <h2>Reports</h2>
+          </div>
           {report.rows.length === 0 ? (
             <p>No category spending yet.</p>
           ) : (
-            <ul>
+            <ul className="report-list">
               {report.rows.map((row) => (
                 <li key={row.label}>
-                  {row.label} {row.amount} {row.percentageLabel}
+                  <div>
+                    <strong>{row.label}</strong>
+                    <span>{row.amount}</span>
+                  </div>
+                  <div className="report-track">
+                    <span style={{ width: row.percentageLabel }} />
+                  </div>
+                  <small>{row.percentageLabel}</small>
                 </li>
               ))}
             </ul>
