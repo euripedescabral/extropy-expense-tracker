@@ -14,6 +14,8 @@ type Category = {
   kind: "system" | "custom";
 };
 
+const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 test.describe("expense tracker critical flows", () => {
   test.beforeEach(async ({ page }) => {
     const expenses: Expense[] = [];
@@ -34,6 +36,8 @@ test.describe("expense tracker critical flows", () => {
     });
 
     await page.route("**/api/categories", async (route) => {
+      const shouldDelay = route.request().headers().referer?.includes("delayDashboard=1");
+
       if (route.request().method() === "POST") {
         const body = route.request().postDataJSON() as { name: string };
         const category = {
@@ -41,17 +45,25 @@ test.describe("expense tracker critical flows", () => {
           name: body.name.trim(),
           kind: "custom" as const
         };
+        if (route.request().headers().referer?.includes("delayMutations=1")) {
+          await wait(250);
+        }
         categories.push(category);
         await route.fulfill({ status: 201, json: category });
         return;
       }
 
+      if (shouldDelay) {
+        await wait(350);
+      }
       await route.fulfill({ status: 200, json: categories });
     });
 
     await page.route("**/api/expenses**", async (route) => {
       const request = route.request();
       const url = new URL(request.url());
+      const shouldDelayMutations = request.headers().referer?.includes("delayMutations=1");
+      const shouldDelayDashboard = request.headers().referer?.includes("delayDashboard=1");
 
       if (request.method() === "POST") {
         const body = request.postDataJSON() as {
@@ -60,6 +72,9 @@ test.describe("expense tracker critical flows", () => {
           categoryId: string;
           occurredOn: string;
         };
+        if (shouldDelayMutations) {
+          await wait(250);
+        }
         const expense = {
           id: `exp_${expenses.length + 1}`,
           amountCents: Math.round(Number(body.amount) * 100),
@@ -80,6 +95,9 @@ test.describe("expense tracker critical flows", () => {
           categoryId: string;
           occurredOn: string;
         };
+        if (shouldDelayMutations) {
+          await wait(250);
+        }
         const updated = {
           id: id ?? "exp_unknown",
           amountCents: Math.round(Number(body.amount) * 100),
@@ -97,6 +115,9 @@ test.describe("expense tracker critical flows", () => {
 
       if (request.method() === "DELETE") {
         const id = url.pathname.split("/").at(-1);
+        if (shouldDelayMutations) {
+          await wait(250);
+        }
         const index = expenses.findIndex((expense) => expense.id === id);
         if (index >= 0) {
           expenses.splice(index, 1);
@@ -105,6 +126,9 @@ test.describe("expense tracker critical flows", () => {
         return;
       }
 
+      if (shouldDelayDashboard) {
+        await wait(350);
+      }
       await route.fulfill({ status: 200, json: expenses });
     });
   });
@@ -136,6 +160,9 @@ test.describe("expense tracker critical flows", () => {
 
     await page.getByTestId("filter-category").selectOption("transport");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeHidden();
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await expect(page.getByTestId("filter-category")).toHaveValue("");
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeVisible();
 
     await page.getByTestId("filter-category").selectOption("food");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeVisible();
@@ -199,6 +226,11 @@ test.describe("expense tracker critical flows", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Edit Breakfast" }).click();
+    await expect(page.getByRole("button", { name: "Cancel edit" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel edit" }).click();
+    await expect(page.getByRole("button", { name: "Add expense" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Edit Breakfast" }).click();
     await page.getByLabel("Amount").fill("10.25");
     await page.getByLabel("Description").fill("Breakfast sandwich");
     await page.getByLabel("Date", { exact: true }).fill("2026-06-02");
@@ -222,5 +254,36 @@ test.describe("expense tracker critical flows", () => {
       page.getByTestId("expense-description").filter({ hasText: "Concert" })
     ).toBeVisible();
     await expect(page.getByTestId("monthly-total")).toHaveText("$30.00");
+  });
+
+  test("shows skeletons and pending states while async work is in flight", async ({ page }) => {
+    await page.goto("/?delayDashboard=1&delayMutations=1");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await expect(page.getByText("Loading dashboard")).toBeVisible();
+    await expect(page.getByTestId("dashboard-skeleton").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add expense" })).toBeVisible();
+
+    await page.getByLabel("Amount").fill("14.00");
+    await page.getByLabel("Description").fill("Slow coffee");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await expect(page.getByRole("button", { name: "Add expense" })).toContainText("Saving");
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Slow coffee" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit Slow coffee" })).toContainText("Edit");
+    await expect(page.getByRole("button", { name: "Delete Slow coffee" })).toContainText("Delete");
+
+    await page.getByLabel("New category").fill("Books");
+    await page.getByRole("button", { name: "Add category" }).click();
+    await expect(page.getByRole("button", { name: "Add category" })).toContainText("Saving");
+    await expect(page.getByTestId("expense-category")).toContainText("Books");
+
+    await page.getByRole("button", { name: "Delete Slow coffee" }).click();
+    await expect(page.getByRole("button", { name: "Delete Slow coffee" })).toContainText("Deleting");
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Slow coffee" })).toBeHidden();
   });
 });

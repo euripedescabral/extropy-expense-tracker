@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  BookOpen,
+  Edit3,
+  LoaderCircle,
+  LogIn,
+  Plus,
+  Save,
+  SearchX,
+  Trash2,
+  UserPlus
+} from "lucide-react";
+import {
   filterExpenses,
   getCategoryBreakdown,
   getMonthlyTotal,
@@ -32,6 +43,24 @@ const formatCents = (cents: number) =>
     currency: "USD"
   }).format(cents / 100);
 
+const readJson = async <T,>(response: Response): Promise<T> => {
+  const body = (await response.json()) as T;
+
+  if (!response.ok) {
+    throw new Error("Request failed");
+  }
+
+  return body;
+};
+
+const SkeletonRows = ({ count }: { count: number }) => (
+  <div className="skeleton-stack" data-testid="dashboard-skeleton" aria-label="Loading dashboard">
+    {Array.from({ length: count }, (_, index) => (
+      <span key={index} className="skeleton-row" />
+    ))}
+  </div>
+);
+
 export const App = () => {
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -52,18 +81,35 @@ export const App = () => {
     occurredOn: new Date().toISOString().slice(0, 10)
   });
   const [newCategory, setNewCategory] = useState("");
+  const [authLoading, setAuthLoading] = useState<"login" | "signup" | null>(null);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [expenseSaving, setExpenseSaving] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
+  const hasActiveFilters = Boolean(filterCategory || fromDate || toDate);
+  const canSubmitExpense =
+    Boolean(expenseForm.amount.trim()) &&
+    Boolean(expenseForm.description.trim()) &&
+    Boolean(expenseForm.categoryId) &&
+    Boolean(expenseForm.occurredOn) &&
+    !expenseSaving &&
+    !isLoadingDashboard;
+  const canAddCategory = Boolean(newCategory.trim()) && !categorySaving && !isLoadingDashboard;
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
+    setIsLoadingDashboard(true);
+    setStatusMessage("Loading dashboard");
     void Promise.all([
       fetch(`${apiBaseUrl}/categories`, { headers: authHeaders(token) }).then((response) =>
-        response.json()
+        readJson<Category[]>(response)
       ),
       fetch(`${apiBaseUrl}/expenses`, { headers: authHeaders(token) }).then((response) =>
-        response.json()
+        readJson<Expense[]>(response)
       )
     ]).then(([nextCategories, nextExpenses]: [Category[], Expense[]]) => {
       setCategories(nextCategories);
@@ -72,6 +118,11 @@ export const App = () => {
         ...current,
         categoryId: nextCategories[0]?.id ?? ""
       }));
+      setStatusMessage("");
+    }).catch(() => {
+      setStatusMessage("Unable to load dashboard data.");
+    }).finally(() => {
+      setIsLoadingDashboard(false);
     });
   }, [token]);
 
@@ -105,39 +156,58 @@ export const App = () => {
   });
 
   const authenticate = async (mode: "login" | "signup") => {
-    const response = await fetch(`${apiBaseUrl}/auth/${mode}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(authForm)
-    });
-    const body = (await response.json()) as { token: string; user: User };
+    setAuthLoading(mode);
+    setStatusMessage("");
 
-    setToken(body.token);
-    setUser(body.user);
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/${mode}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(authForm)
+      });
+      const body = await readJson<{ token: string; user: User }>(response);
+
+      setToken(body.token);
+      setUser(body.user);
+    } catch {
+      setStatusMessage("Authentication failed. Check your credentials and try again.");
+    } finally {
+      setAuthLoading(null);
+    }
   };
 
   const addExpense = async () => {
-    const response = await fetch(
-      editingExpenseId ? `${apiBaseUrl}/expenses/${editingExpenseId}` : `${apiBaseUrl}/expenses`,
-      {
-        method: editingExpenseId ? "PUT" : "POST",
-        headers: authHeaders(token),
-        body: JSON.stringify(expenseForm)
-      }
-    );
-    const saved = (await response.json()) as Expense;
+    setExpenseSaving(true);
+    setStatusMessage(editingExpenseId ? "Saving expense" : "Adding expense");
 
-    setExpenses((current) =>
-      editingExpenseId
-        ? current.map((expense) => (expense.id === saved.id ? saved : expense))
-        : [...current, saved]
-    );
-    setEditingExpenseId(null);
-    setExpenseForm((current) => ({
-      ...current,
-      amount: "",
-      description: ""
-    }));
+    try {
+      const response = await fetch(
+        editingExpenseId ? `${apiBaseUrl}/expenses/${editingExpenseId}` : `${apiBaseUrl}/expenses`,
+        {
+          method: editingExpenseId ? "PUT" : "POST",
+          headers: authHeaders(token),
+          body: JSON.stringify(expenseForm)
+        }
+      );
+      const saved = await readJson<Expense>(response);
+
+      setExpenses((current) =>
+        editingExpenseId
+          ? current.map((expense) => (expense.id === saved.id ? saved : expense))
+          : [...current, saved]
+      );
+      setEditingExpenseId(null);
+      setExpenseForm((current) => ({
+        ...current,
+        amount: "",
+        description: ""
+      }));
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to save expense.");
+    } finally {
+      setExpenseSaving(false);
+    }
   };
 
   const startEditingExpense = (expense: Expense) => {
@@ -150,28 +220,64 @@ export const App = () => {
     });
   };
 
-  const addCategory = async () => {
-    const response = await fetch(`${apiBaseUrl}/categories`, {
-      method: "POST",
-      headers: authHeaders(token),
-      body: JSON.stringify({ name: newCategory })
-    });
-    const created = (await response.json()) as Category;
-
-    setCategories((current) => [...current, created]);
+  const cancelEditingExpense = () => {
+    setEditingExpenseId(null);
     setExpenseForm((current) => ({
       ...current,
-      categoryId: created.id
+      amount: "",
+      description: ""
     }));
-    setNewCategory("");
+    setStatusMessage("");
+  };
+
+  const clearFilters = () => {
+    setFilterCategory("");
+    setFromDate("");
+    setToDate("");
+  };
+
+  const addCategory = async () => {
+    setCategorySaving(true);
+    setStatusMessage("Saving category");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/categories`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify({ name: newCategory })
+      });
+      const created = await readJson<Category>(response);
+
+      setCategories((current) => [...current, created]);
+      setExpenseForm((current) => ({
+        ...current,
+        categoryId: created.id
+      }));
+      setNewCategory("");
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to save category.");
+    } finally {
+      setCategorySaving(false);
+    }
   };
 
   const deleteExpense = async (expense: Expense) => {
-    await fetch(`${apiBaseUrl}/expenses/${expense.id}`, {
-      method: "DELETE",
-      headers: authHeaders(token)
-    });
-    setExpenses((current) => current.filter((item) => item.id !== expense.id));
+    setDeletingExpenseId(expense.id);
+    setStatusMessage(`Deleting ${expense.description}`);
+
+    try {
+      await fetch(`${apiBaseUrl}/expenses/${expense.id}`, {
+        method: "DELETE",
+        headers: authHeaders(token)
+      });
+      setExpenses((current) => current.filter((item) => item.id !== expense.id));
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to delete expense.");
+    } finally {
+      setDeletingExpenseId(null);
+    }
   };
 
   if (!user) {
@@ -217,12 +323,25 @@ export const App = () => {
               type="password"
             />
           </label>
-          <button type="button" onClick={() => void authenticate("signup")}>
-            Create account
+          <button
+            type="button"
+            aria-label="Create account"
+            disabled={authLoading !== null}
+            onClick={() => void authenticate("signup")}
+          >
+            {authLoading === "signup" ? <LoaderCircle aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
+            {authLoading === "signup" ? "Creating" : "Create"}
           </button>
-          <button type="button" onClick={() => void authenticate("login")}>
-            Log in
+          <button
+            type="button"
+            aria-label="Log in"
+            disabled={authLoading !== null}
+            onClick={() => void authenticate("login")}
+          >
+            {authLoading === "login" ? <LoaderCircle aria-hidden="true" /> : <LogIn aria-hidden="true" />}
+            {authLoading === "login" ? "Signing in" : "Log in"}
           </button>
+          {statusMessage ? <p className="status-message">{statusMessage}</p> : null}
         </section>
       </main>
     );
@@ -247,6 +366,8 @@ export const App = () => {
           <span className="panel-kicker">June cash pulse</span>
           <h2 id="dashboard-title">{report.monthlyTotal}</h2>
           <p>Live total for the selected filters, backed by your expense ledger.</p>
+          {isLoadingDashboard ? <p className="status-message">Loading dashboard</p> : null}
+          {!isLoadingDashboard && statusMessage ? <p className="status-message">{statusMessage}</p> : null}
         </div>
         <div className="metric-strip">
           <div>
@@ -272,11 +393,13 @@ export const App = () => {
           <div className="panel-heading">
             <span className="panel-kicker">Transaction intake</span>
             <h2>Add expense</h2>
+            {editingExpenseId ? <p>Editing selected transaction</p> : null}
           </div>
           <label>
             Amount
             <input
               value={expenseForm.amount}
+              disabled={expenseSaving || isLoadingDashboard}
               onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
               inputMode="decimal"
             />
@@ -285,6 +408,7 @@ export const App = () => {
             Description
             <input
               value={expenseForm.description}
+              disabled={expenseSaving || isLoadingDashboard}
               onChange={(event) =>
                 setExpenseForm({ ...expenseForm, description: event.target.value })
               }
@@ -295,6 +419,7 @@ export const App = () => {
             <select
               data-testid="expense-category"
               value={expenseForm.categoryId}
+              disabled={expenseSaving || isLoadingDashboard || categories.length === 0}
               onChange={(event) =>
                 setExpenseForm({ ...expenseForm, categoryId: event.target.value })
               }
@@ -310,15 +435,40 @@ export const App = () => {
             Date
             <input
               value={expenseForm.occurredOn}
+              disabled={expenseSaving || isLoadingDashboard}
               onChange={(event) =>
                 setExpenseForm({ ...expenseForm, occurredOn: event.target.value })
               }
               type="date"
             />
           </label>
-          <button type="button" onClick={() => void addExpense()}>
-            {editingExpenseId ? "Save expense" : "Add expense"}
+          <button
+            type="button"
+            aria-label={editingExpenseId ? "Save expense" : "Add expense"}
+            disabled={!canSubmitExpense}
+            onClick={() => void addExpense()}
+          >
+            {expenseSaving ? (
+              <LoaderCircle aria-hidden="true" />
+            ) : editingExpenseId ? (
+              <Save aria-hidden="true" />
+            ) : (
+              <Plus aria-hidden="true" />
+            )}
+            {expenseSaving ? "Saving" : editingExpenseId ? "Save" : "Add"}
           </button>
+          {editingExpenseId ? (
+            <button
+              className="secondary-action"
+              type="button"
+              aria-label="Cancel edit"
+              disabled={expenseSaving}
+              onClick={cancelEditingExpense}
+            >
+              <SearchX aria-hidden="true" />
+              Cancel
+            </button>
+          ) : null}
         </form>
 
         <section className="panel">
@@ -330,11 +480,18 @@ export const App = () => {
             New category
             <input
               value={newCategory}
+              disabled={categorySaving || isLoadingDashboard}
               onChange={(event) => setNewCategory(event.target.value)}
             />
           </label>
-          <button type="button" onClick={() => void addCategory()}>
-            Add category
+          <button
+            type="button"
+            aria-label="Add category"
+            disabled={!canAddCategory}
+            onClick={() => void addCategory()}
+          >
+            {categorySaving ? <LoaderCircle aria-hidden="true" /> : <BookOpen aria-hidden="true" />}
+            {categorySaving ? "Saving" : "Add"}
           </button>
         </section>
 
@@ -349,6 +506,7 @@ export const App = () => {
               <select
                 data-testid="filter-category"
                 value={filterCategory}
+                disabled={isLoadingDashboard}
                 onChange={(event) => setFilterCategory(event.target.value)}
               >
                 <option value="">All categories</option>
@@ -363,6 +521,7 @@ export const App = () => {
               From date
               <input
                 value={fromDate}
+                disabled={isLoadingDashboard}
                 onChange={(event) => setFromDate(event.target.value)}
                 type="date"
               />
@@ -371,13 +530,42 @@ export const App = () => {
               To date
               <input
                 value={toDate}
+                disabled={isLoadingDashboard}
                 onChange={(event) => setToDate(event.target.value)}
                 type="date"
               />
             </label>
+            {hasActiveFilters ? (
+              <button
+                className="secondary-action"
+                type="button"
+                aria-hidden="true"
+                tabIndex={-1}
+                disabled={isLoadingDashboard}
+                onClick={clearFilters}
+              >
+                <SearchX aria-hidden="true" />
+                Clear
+              </button>
+            ) : null}
           </div>
-          {visibleExpenses.length === 0 ? (
-            <p>{report.emptyMessage}</p>
+          {isLoadingDashboard ? (
+            <SkeletonRows count={4} />
+          ) : visibleExpenses.length === 0 ? (
+            <div className="empty-state">
+              <strong>{report.emptyMessage}</strong>
+              {hasActiveFilters ? (
+                <button
+                  className="secondary-action"
+                  type="button"
+                  aria-label="Clear filters"
+                  onClick={clearFilters}
+                >
+                  <SearchX aria-hidden="true" />
+                  Clear
+                </button>
+              ) : null}
+            </div>
           ) : (
             <ul className="expense-list">
               {visibleExpenses.map((expense) => (
@@ -387,11 +575,27 @@ export const App = () => {
                     <small>{categoryNameById[expense.categoryId] ?? expense.categoryId}</small>
                   </span>
                   <span className="expense-amount">{formatCents(expense.amountCents)}</span>
-                  <button type="button" onClick={() => startEditingExpense(expense)}>
-                    Edit {expense.description}
+                  <button
+                    type="button"
+                    aria-label={`Edit ${expense.description}`}
+                    disabled={expenseSaving || deletingExpenseId !== null}
+                    onClick={() => startEditingExpense(expense)}
+                  >
+                    <Edit3 aria-hidden="true" />
+                    Edit
                   </button>
-                  <button type="button" onClick={() => void deleteExpense(expense)}>
-                    Delete {expense.description}
+                  <button
+                    type="button"
+                    aria-label={`Delete ${expense.description}`}
+                    disabled={expenseSaving || deletingExpenseId !== null}
+                    onClick={() => void deleteExpense(expense)}
+                  >
+                    {deletingExpenseId === expense.id ? (
+                      <LoaderCircle aria-hidden="true" />
+                    ) : (
+                      <Trash2 aria-hidden="true" />
+                    )}
+                    {deletingExpenseId === expense.id ? "Deleting" : "Delete"}
                   </button>
                 </li>
               ))}
@@ -404,7 +608,9 @@ export const App = () => {
             <span className="panel-kicker">Spend intelligence</span>
             <h2>Reports</h2>
           </div>
-          {report.rows.length === 0 ? (
+          {isLoadingDashboard ? (
+            <SkeletonRows count={3} />
+          ) : report.rows.length === 0 ? (
             <p>No category spending yet.</p>
           ) : (
             <ul className="report-list">

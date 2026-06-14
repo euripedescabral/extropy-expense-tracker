@@ -91,6 +91,7 @@ After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_
 - UI flow recording, signup/add/filter: [docs/assets/ui-flow-signup-add-filter.webm](docs/assets/ui-flow-signup-add-filter.webm)
 - UI flow recording, category/delete: [docs/assets/ui-flow-category-delete.webm](docs/assets/ui-flow-category-delete.webm)
 - UI flow recording, edit/date filter: [docs/assets/ui-flow-edit-date-filter.webm](docs/assets/ui-flow-edit-date-filter.webm)
+- UI flow recording, loading states: [docs/assets/ui-flow-loading-states.webm](docs/assets/ui-flow-loading-states.webm)
 - Desktop dashboard: [docs/assets/demo-dashboard-desktop.png](docs/assets/demo-dashboard-desktop.png)
 - Food filter: [docs/assets/demo-filter-food.png](docs/assets/demo-filter-food.png)
 - Dashboard after add: [docs/assets/demo-dashboard-after-add.png](docs/assets/demo-dashboard-after-add.png)
