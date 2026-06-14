@@ -1,0 +1,22 @@
+{
+  "name": "@expense-tracker/infra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.199.0",
+    "constructs": "^10.4.2",
+    "tsx": "^4.20.3"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.1016.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.3"
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "app": "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
+}

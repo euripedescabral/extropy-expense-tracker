@@ -1,0 +1,27 @@
+{
+  "name": "@expense-tracker/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "vitest --watch",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.830.0",
+    "@aws-sdk/lib-dynamodb": "^3.830.0",
+    "@expense-tracker/core": "workspace:*",
+    "bcryptjs": "^3.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.25.64"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.149",
+    "@types/jsonwebtoken": "^9.0.10",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.3"
+  }
+}
