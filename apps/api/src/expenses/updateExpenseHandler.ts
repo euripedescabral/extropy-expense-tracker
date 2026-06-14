@@ -1,4 +1,5 @@
 import { normalizeExpenseInput } from "@expense-tracker/core";
+import { json, type HttpResponse } from "../http";
 
 type ExpenseRepository = {
   update(input: {
@@ -24,7 +25,7 @@ type ApiEvent = {
 
 export const updateExpenseHandler =
   (dependencies: UpdateExpenseHandlerDependencies) =>
-  async (event: ApiEvent): Promise<{ statusCode: number; body: string }> => {
+  async (event: ApiEvent): Promise<HttpResponse> => {
     const authorization = event.headers?.authorization ?? event.headers?.Authorization;
     const token = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : "";
 
@@ -64,8 +65,3 @@ export const updateExpenseHandler =
       });
     }
   };
-
-const json = (statusCode: number, body: unknown) => ({
-  statusCode,
-  body: JSON.stringify(body)
-});

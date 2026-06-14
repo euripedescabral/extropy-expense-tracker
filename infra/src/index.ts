@@ -1,11 +1,26 @@
 import * as cdk from "aws-cdk-lib";
-import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
+import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as lambda from "aws-cdk-lib/aws-lambda-nodejs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import type { Construct } from "constructs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const apiEntry = path.join(currentDirectory, "../../apps/api/src/lambda.ts");
+const requireDeployEnv = (name: string) => {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing required deployment environment variable: ${name}`);
+  }
+
+  return value;
+};
 
 export class ExpenseTrackerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -18,27 +33,38 @@ export class ExpenseTrackerStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
-    const apiHandler = new lambda.Function(this, "ApiHandler", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+    const apiHandler = new lambda.NodejsFunction(this, "ApiHandler", {
+      runtime: cdk.aws_lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 512,
       handler: "index.handler",
-      code: lambda.Code.fromInline(
-        "exports.handler = async () => ({ statusCode: 200, body: JSON.stringify({ ok: true }) });"
-      ),
+      entry: apiEntry,
       environment: {
-        DYNAMODB_TABLE_NAME: table.tableName
+        DYNAMODB_TABLE_NAME: table.tableName,
+        JWT_SECRET: requireDeployEnv("JWT_SECRET")
       }
     });
 
     table.grantReadWriteData(apiHandler);
 
-    const api = new apigateway.LambdaRestApi(this, "ExpenseTrackerApi", {
-      handler: apiHandler,
-      proxy: true,
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
+    const api = new apigatewayv2.HttpApi(this, "ExpenseTrackerApi", {
+      corsPreflight: {
+        allowOrigins: ["*"],
+        allowMethods: [
+          apigatewayv2.CorsHttpMethod.GET,
+          apigatewayv2.CorsHttpMethod.POST,
+          apigatewayv2.CorsHttpMethod.PUT,
+          apigatewayv2.CorsHttpMethod.DELETE,
+          apigatewayv2.CorsHttpMethod.OPTIONS
+        ],
         allowHeaders: ["content-type", "authorization"]
       }
+    });
+
+    api.addRoutes({
+      path: "/{proxy+}",
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: new integrations.HttpLambdaIntegration("ApiIntegration", apiHandler)
     });
 
     const webBucket = new s3.Bucket(this, "WebBucket", {
@@ -55,8 +81,9 @@ export class ExpenseTrackerStack extends cdk.Stack {
       defaultRootObject: "index.html"
     });
 
-    new cdk.CfnOutput(this, "ApiUrl", { value: api.url });
+    new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new cdk.CfnOutput(this, "WebBucketName", { value: webBucket.bucketName });
+    new cdk.CfnOutput(this, "DistributionId", { value: distribution.distributionId });
     new cdk.CfnOutput(this, "WebUrl", { value: `https://${distribution.domainName}` });
   }
 }

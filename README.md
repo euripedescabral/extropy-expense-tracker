@@ -5,9 +5,9 @@ Personal expense tracker take-home built as a pnpm monorepo.
 ## Architecture
 
 - `packages/core`: shared Zod-backed domain contracts and pure functions for expenses, categories, filtering, and reports.
-- `apps/api`: TypeScript Lambda-oriented service and handler modules for auth and expense creation.
+- `apps/api`: TypeScript Lambda/API Gateway service with JWT auth, category, and expense routes backed by DynamoDB.
 - `apps/web`: React 18 + Vite dashboard with accessible forms and Playwright-covered user flows.
-- `infra`: AWS CDK v2 stack skeleton for API Gateway, Lambda, DynamoDB, S3, and CloudFront.
+- `infra`: AWS CDK v2 stack for HTTP API Gateway, Node.js 20 Lambda, DynamoDB, S3, and CloudFront.
 - `plans`: KERNEL-style implementation plans and execution notes.
 
 ## Prerequisites
@@ -42,6 +42,7 @@ Place `.env` at the repository root for local development.
 ```bash
 pnpm test          # Unit/API/web tests
 pnpm run test:e2e # Playwright desktop + mobile flows
+pnpm run smoke:live # Deployed API smoke test
 pnpm run typecheck
 pnpm run lint
 pnpm run build
@@ -54,9 +55,13 @@ AWS login, CLI profile setup, bootstrap, deploy, and frontend upload instruction
 The CDK stack is scaffolded in `infra`:
 
 ```bash
+export AWS_REGION=us-east-2
+export AWS_DEFAULT_REGION=us-east-2
+export JWT_SECRET="<long-random-secret>"
+
 pnpm --filter @expense-tracker/infra build
 pnpm --filter @expense-tracker/infra exec cdk synth --app "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
-pnpm --filter @expense-tracker/infra exec cdk deploy --app "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
+pnpm --filter @expense-tracker/infra exec cdk deploy ExpenseTrackerStack --require-approval never --app "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
 ```
 
 After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_API_BASE_URL` to the emitted API URL for production builds.
@@ -77,8 +82,19 @@ After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_
 ## Submission URLs
 
 - GitHub Repository URL: https://github.com/euripedescabral/extropy-expense-tracker
-- Live Application URL: pending
-- API URL: pending
+- Live Application URL: https://d6bx9i66sv1zv.cloudfront.net
+- API URL: https://vr8i94iayl.execute-api.us-east-2.amazonaws.com
+
+## Demo Assets
+
+- Demo recording: [docs/assets/demo-flow.webm](docs/assets/demo-flow.webm)
+- Desktop dashboard: [docs/assets/demo-dashboard-desktop.png](docs/assets/demo-dashboard-desktop.png)
+- Food filter: [docs/assets/demo-filter-food.png](docs/assets/demo-filter-food.png)
+- Dashboard after add: [docs/assets/demo-dashboard-after-add.png](docs/assets/demo-dashboard-after-add.png)
+- Mobile dashboard: [docs/assets/demo-dashboard-mobile.png](docs/assets/demo-dashboard-mobile.png)
+- Full audit notes: [docs/audit-report.md](docs/audit-report.md)
+
+The reusable demo login is documented in [docs/aws-operations.md](docs/aws-operations.md#reusable-smoke-login).
 
 ## Troubleshooting
 

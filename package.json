@@ -8,6 +8,7 @@
     "build": "pnpm -r run build",
     "dev": "pnpm --parallel --filter @expense-tracker/api --filter @expense-tracker/web run dev",
     "lint": "pnpm -r run lint",
+    "smoke:live": "node scripts/smoke-live.mjs",
     "test": "pnpm -r run test",
     "test:e2e": "pnpm --filter @expense-tracker/web run test:e2e",
     "typecheck": "pnpm -r run typecheck"
@@ -15,6 +16,7 @@
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@types/node": "^22.15.32",
+    "esbuild": "^0.25.5",
     "eslint": "^9.29.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.34.1",
