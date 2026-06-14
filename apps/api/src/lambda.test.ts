@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { describe, expect, it, vi } from "vitest";
-import type { Category, Expense } from "@expense-tracker/core";
+import type { Budget, Category, Expense } from "@expense-tracker/core";
 import { createAppHandler } from "./lambda";
 
 type UserRecord = {
@@ -34,6 +34,7 @@ const buildHandler = () => {
   const users: UserRecord[] = [];
   const expenses: Expense[] = [];
   const categories: Category[] = [];
+  const budgets: Budget[] = [];
 
   return createAppHandler({
     jwtSecret: "test-secret",
@@ -85,6 +86,19 @@ const buildHandler = () => {
 
         return category;
       })
+    },
+    budgetRepository: {
+      list: vi.fn(async () => budgets),
+      upsert: vi.fn(async (budget: Budget) => {
+        const index = budgets.findIndex((item) => item.categoryId === budget.categoryId);
+        if (index >= 0) {
+          budgets[index] = budget;
+        } else {
+          budgets.push(budget);
+        }
+
+        return budget;
+      })
     }
   });
 };
@@ -117,6 +131,25 @@ describe("lambda app handler", () => {
     );
     expect(customCategory.statusCode).toBe(201);
     expect(bodyOf<Category>(customCategory)).toMatchObject({ id: "books", name: "Books" });
+
+    const savedBudget = await handler(
+      event("PUT", "/budgets/food", {
+        token: session.token,
+        body: { amount: "200.00" }
+      })
+    );
+    expect(savedBudget.statusCode).toBe(200);
+    expect(bodyOf<Budget>(savedBudget)).toEqual({
+      userId: "user_1",
+      categoryId: "food",
+      monthlyLimitCents: 20000
+    });
+
+    const listBudgets = await handler(event("GET", "/budgets", { token: session.token }));
+    expect(listBudgets.statusCode).toBe(200);
+    expect(bodyOf<Budget[]>(listBudgets)).toContainEqual(
+      expect.objectContaining({ categoryId: "food", monthlyLimitCents: 20000 })
+    );
 
     const createdExpense = await handler(
       event("POST", "/expenses", {

@@ -50,6 +50,18 @@ assert(categories.body.length > 0, "categories should include defaults");
 
 const categoryId = categories.body[0].id;
 
+const budget = await requestJson(`/budgets/${categoryId}`, {
+  method: "PUT",
+  headers: authHeaders,
+  body: JSON.stringify({ amount: "500.00" })
+});
+assert(budget.status === 200, "budget upsert should return 200");
+assert(budget.body.categoryId === categoryId, "budget should be saved for selected category");
+
+const budgets = await requestJson("/budgets", { headers: authHeaders });
+assert(Array.isArray(budgets.body), "budget list should return an array");
+assert(budgets.body.some((item) => item.categoryId === categoryId), "budget list should include saved budget");
+
 const created = await requestJson("/expenses", {
   method: "POST",
   headers: authHeaders,
@@ -91,5 +103,15 @@ assert(deleted.status === 204, "expense delete should return 204");
 console.log("LIVE_SMOKE_PASSED", {
   apiUrl,
   email,
-  routes: ["signup", "login", "categories", "create expense", "update expense", "list expenses", "delete expense"]
+  routes: [
+    "signup",
+    "login",
+    "categories",
+    "upsert budget",
+    "list budgets",
+    "create expense",
+    "update expense",
+    "list expenses",
+    "delete expense"
+  ]
 });

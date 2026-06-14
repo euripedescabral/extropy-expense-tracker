@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
-import { addCustomCategory } from "@expense-tracker/core";
+import { addCustomCategory, normalizeBudgetInput } from "@expense-tracker/core";
 import { createAuthService } from "./auth/authService";
 import { verifyAuthToken, type AuthClaims } from "./auth/token";
 import { MissingEnvError, requireEnv } from "./config/env";
@@ -15,6 +15,7 @@ type AppDependencies = {
   userRepository: Repositories["users"];
   expenseRepository: Repositories["expenses"];
   categoryRepository: Repositories["categories"];
+  budgetRepository: Repositories["budgets"];
 };
 
 type AuthenticatedHandler = (claims: AuthClaims) => Promise<HttpResponse>;
@@ -110,6 +111,32 @@ export const createAppHandler = (dependencies: AppDependencies) => {
         );
       }
 
+      if (method === "GET" && path === "/budgets") {
+        return withAuth(event, async (claims) =>
+          json(200, await dependencies.budgetRepository.list(claims.userId))
+        );
+      }
+
+      const budgetCategoryId = path.match(/^\/budgets\/([^/]+)$/)?.[1];
+
+      if (budgetCategoryId && method === "PUT") {
+        return withAuth(event, async (claims) => {
+          const body = parseJsonBody(event.body) as { amount?: string };
+          const normalized = normalizeBudgetInput({
+            amount: body.amount ?? "",
+            categoryId: budgetCategoryId
+          });
+
+          return json(
+            200,
+            await dependencies.budgetRepository.upsert({
+              userId: claims.userId,
+              ...normalized
+            })
+          );
+        });
+      }
+
       if (method === "POST" && path === "/expenses") {
         return createExpense(event);
       }
@@ -157,7 +184,8 @@ const getDeployedHandler = () => {
       jwtSecret: requireEnv("JWT_SECRET"),
       userRepository: repositories.users,
       expenseRepository: repositories.expenses,
-      categoryRepository: repositories.categories
+      categoryRepository: repositories.categories,
+      budgetRepository: repositories.budgets
     });
   }
 

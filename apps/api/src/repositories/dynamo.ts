@@ -7,7 +7,7 @@ import {
   PutCommand,
   QueryCommand
 } from "@aws-sdk/lib-dynamodb";
-import { seedDefaultCategories, type Category, type Expense } from "@expense-tracker/core";
+import { seedDefaultCategories, type Budget, type Category, type Expense } from "@expense-tracker/core";
 
 type UserRecord = {
   id: string;
@@ -25,6 +25,7 @@ const userSk = "PROFILE";
 const accountPk = (userId: string) => `USER#${userId}`;
 const expenseSk = (id: string) => `EXPENSE#${id}`;
 const categorySk = (id: string) => `CATEGORY#${id}`;
+const budgetSk = (categoryId: string) => `BUDGET#${categoryId}`;
 
 export const toPublicExpense = (item: Expense): Expense => ({
   id: item.id,
@@ -40,6 +41,12 @@ export const toPublicCategory = (item: Category): Category => ({
   userId: item.userId,
   name: item.name,
   kind: item.kind
+});
+
+export const toPublicBudget = (item: Budget): Budget => ({
+  userId: item.userId,
+  categoryId: item.categoryId,
+  monthlyLimitCents: item.monthlyLimitCents
 });
 
 export const createDynamoRepositories = (input: DynamoRepositoriesInput) => {
@@ -162,6 +169,21 @@ export const createDynamoRepositories = (input: DynamoRepositoriesInput) => {
         }, "attribute_not_exists(pk)");
 
         return category;
+      }
+    },
+    budgets: {
+      list: async (userId: string) =>
+        queryUserItems<Budget>(userId, "BUDGET#").then((budgets) =>
+          budgets.map(toPublicBudget).sort((left, right) => left.categoryId.localeCompare(right.categoryId))
+        ),
+      upsert: async (budget: Budget) => {
+        await putItem({
+          pk: accountPk(budget.userId),
+          sk: budgetSk(budget.categoryId),
+          ...budget
+        });
+
+        return budget;
       }
     }
   };

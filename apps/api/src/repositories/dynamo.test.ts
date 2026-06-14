@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toPublicCategory, toPublicExpense } from "./dynamo";
+import { toPublicBudget, toPublicCategory, toPublicExpense } from "./dynamo";
 
 describe("dynamo repository mappers", () => {
   it("removes storage keys from expense API records", () => {
@@ -39,6 +39,22 @@ describe("dynamo repository mappers", () => {
       userId: "user_1",
       name: "Books",
       kind: "custom"
+    });
+  });
+
+  it("removes storage keys from budget API records", () => {
+    expect(
+      toPublicBudget({
+        pk: "USER#user_1",
+        sk: "BUDGET#food",
+        userId: "user_1",
+        categoryId: "food",
+        monthlyLimitCents: 50000
+      } as never)
+    ).toEqual({
+      userId: "user_1",
+      categoryId: "food",
+      monthlyLimitCents: 50000
     });
   });
 });

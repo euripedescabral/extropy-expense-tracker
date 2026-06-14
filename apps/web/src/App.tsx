@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
+  BarChart3,
+  Download,
   Edit3,
   LoaderCircle,
   LogIn,
@@ -11,9 +13,14 @@ import {
   UserPlus
 } from "lucide-react";
 import {
+  buildExpenseCsv,
   filterExpenses,
+  getBudgetSummaries,
   getCategoryBreakdown,
   getMonthlyTotal,
+  getMonthlyTrends,
+  normalizeBudgetInput,
+  type Budget,
   type Expense
 } from "@expense-tracker/core";
 import { buildReportViewModel } from "./features/expenses/reportViewModel";
@@ -66,6 +73,8 @@ export const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [activeView, setActiveView] = useState<"dashboard" | "report">("dashboard");
   const [filterCategory, setFilterCategory] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -81,10 +90,15 @@ export const App = () => {
     occurredOn: new Date().toISOString().slice(0, 10)
   });
   const [newCategory, setNewCategory] = useState("");
+  const [budgetForm, setBudgetForm] = useState({
+    categoryId: "food",
+    amount: ""
+  });
   const [authLoading, setAuthLoading] = useState<"login" | "signup" | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [expenseSaving, setExpenseSaving] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const hasActiveFilters = Boolean(filterCategory || fromDate || toDate);
@@ -96,6 +110,7 @@ export const App = () => {
     !expenseSaving &&
     !isLoadingDashboard;
   const canAddCategory = Boolean(newCategory.trim()) && !categorySaving && !isLoadingDashboard;
+  const canSaveBudget = Boolean(budgetForm.categoryId) && Boolean(budgetForm.amount.trim()) && !budgetSaving;
 
   useEffect(() => {
     if (!token) {
@@ -110,11 +125,19 @@ export const App = () => {
       ),
       fetch(`${apiBaseUrl}/expenses`, { headers: authHeaders(token) }).then((response) =>
         readJson<Expense[]>(response)
+      ),
+      fetch(`${apiBaseUrl}/budgets`, { headers: authHeaders(token) }).then((response) =>
+        readJson<Budget[]>(response)
       )
-    ]).then(([nextCategories, nextExpenses]: [Category[], Expense[]]) => {
+    ]).then(([nextCategories, nextExpenses, nextBudgets]: [Category[], Expense[], Budget[]]) => {
       setCategories(nextCategories);
       setExpenses(nextExpenses);
+      setBudgets(nextBudgets);
       setExpenseForm((current) => ({
+        ...current,
+        categoryId: nextCategories[0]?.id ?? ""
+      }));
+      setBudgetForm((current) => ({
         ...current,
         categoryId: nextCategories[0]?.id ?? ""
       }));
@@ -143,11 +166,22 @@ export const App = () => {
   );
 
   const monthlyTotalCents = getMonthlyTotal(visibleExpenses, "2026-06");
+  const allTimeTotalCents = expenses.reduce((total, expense) => total + expense.amountCents, 0);
   const breakdown = getCategoryBreakdown(visibleExpenses).map((item) => ({
     ...item,
     categoryName: categoryNameById[item.categoryId] ?? item.categoryId
   }));
   const topCategory = breakdown[0]?.categoryName ?? "No spend yet";
+  const budgetSummaries = getBudgetSummaries({
+    expenses,
+    budgets,
+    month: "2026-06"
+  }).map((item) => ({
+    ...item,
+    categoryName: categoryNameById[item.categoryId] ?? item.categoryId
+  }));
+  const trends = getMonthlyTrends(expenses);
+  const maxTrendCents = Math.max(...trends.map((trend) => trend.totalCents), 1);
   const report = buildReportViewModel({
     monthlyTotalCents,
     breakdown,
@@ -262,6 +296,47 @@ export const App = () => {
     }
   };
 
+  const saveBudget = async () => {
+    setBudgetSaving(true);
+    setStatusMessage("Saving budget");
+
+    try {
+      const normalized = normalizeBudgetInput(budgetForm);
+      const response = await fetch(`${apiBaseUrl}/budgets/${normalized.categoryId}`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify({ amount: budgetForm.amount })
+      });
+      const saved = await readJson<Budget>(response);
+
+      setBudgets((current) => {
+        const withoutCurrent = current.filter((budget) => budget.categoryId !== saved.categoryId);
+
+        return [...withoutCurrent, saved];
+      });
+      setBudgetForm((current) => ({
+        ...current,
+        amount: ""
+      }));
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to save budget.");
+    } finally {
+      setBudgetSaving(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const csv = buildExpenseCsv(visibleExpenses, categoryNameById);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "expenses.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const deleteExpense = async (expense: Expense) => {
     setDeletingExpenseId(expense.id);
     setStatusMessage(`Deleting ${expense.description}`);
@@ -361,6 +436,27 @@ export const App = () => {
         </div>
       </header>
 
+      <nav className="view-switcher" aria-label="Expense views">
+        <button
+          type="button"
+          aria-label="Open dashboard"
+          className={activeView === "dashboard" ? "active" : "secondary-action"}
+          onClick={() => setActiveView("dashboard")}
+        >
+          <BarChart3 aria-hidden="true" />
+          Dashboard
+        </button>
+        <button
+          type="button"
+          aria-label="Open detailed report"
+          className={activeView === "report" ? "active" : "secondary-action"}
+          onClick={() => setActiveView("report")}
+        >
+          <BookOpen aria-hidden="true" />
+          Report
+        </button>
+      </nav>
+
       <section className="hero-panel" aria-labelledby="dashboard-title">
         <div>
           <span className="panel-kicker">June cash pulse</span>
@@ -388,6 +484,7 @@ export const App = () => {
         </strong>
       </section>
 
+      {activeView === "dashboard" ? (
       <section className="layout-grid">
         <form className="panel" onSubmit={(event) => event.preventDefault()}>
           <div className="panel-heading">
@@ -630,6 +727,128 @@ export const App = () => {
           )}
         </section>
       </section>
+      ) : (
+        <section className="report-grid">
+          <section className="panel wide-report">
+            <div className="toolbar">
+              <div className="panel-heading">
+                <span className="panel-kicker">Detailed ledger</span>
+                <h2>Detailed report</h2>
+              </div>
+              <button type="button" aria-label="Export CSV" onClick={exportCsv}>
+                <Download aria-hidden="true" />
+                CSV
+              </button>
+            </div>
+            <div className="summary-grid">
+              <div>
+                <span>Visible spend</span>
+                <strong>{formatCents(monthlyTotalCents)}</strong>
+              </div>
+              <div>
+                <span>All-time spend</span>
+                <strong>{formatCents(allTimeTotalCents)}</strong>
+              </div>
+              <div>
+                <span>Budgeted categories</span>
+                <strong>{budgets.length}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel" data-testid="spending-trends">
+            <div className="panel-heading">
+              <span className="panel-kicker">Spending trends visualization</span>
+              <h2>Monthly trends</h2>
+            </div>
+            {trends.length === 0 ? (
+              <p>No trend data yet.</p>
+            ) : (
+              <ul className="trend-list">
+                {trends.map((trend) => (
+                  <li key={trend.month}>
+                    <div>
+                      <strong>{trend.month}</strong>
+                      <span>{formatCents(trend.totalCents)}</span>
+                    </div>
+                    <div className="report-track">
+                      <span style={{ width: `${Math.max(6, (trend.totalCents / maxTrendCents) * 100)}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-heading">
+              <span className="panel-kicker">Budget setting per category</span>
+              <h2>Budgets</h2>
+            </div>
+            <label>
+              Budget category
+              <select
+                value={budgetForm.categoryId}
+                onChange={(event) => setBudgetForm({ ...budgetForm, categoryId: event.target.value })}
+              >
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Monthly budget
+              <input
+                value={budgetForm.amount}
+                onChange={(event) => setBudgetForm({ ...budgetForm, amount: event.target.value })}
+                inputMode="decimal"
+              />
+            </label>
+            <button
+              type="button"
+              aria-label="Save budget"
+              disabled={!canSaveBudget}
+              onClick={() => void saveBudget()}
+            >
+              {budgetSaving ? <LoaderCircle aria-hidden="true" /> : <Save aria-hidden="true" />}
+              {budgetSaving ? "Saving" : "Save"}
+            </button>
+          </section>
+
+          <section className="panel wide-report" data-testid="budget-summary">
+            <div className="panel-heading">
+              <span className="panel-kicker">Budget progress</span>
+              <h2>Budget summary</h2>
+            </div>
+            {budgetSummaries.length === 0 ? (
+              <p>No budgets set yet.</p>
+            ) : (
+              <ul className="budget-list">
+                {budgetSummaries.map((budget) => (
+                  <li key={budget.categoryId} data-status={budget.status}>
+                    <div>
+                      <strong>{budget.categoryName}</strong>
+                      <span>
+                        {budget.remainingCents >= 0
+                          ? `${formatCents(budget.remainingCents)} left`
+                          : `${formatCents(Math.abs(budget.remainingCents))} over`}
+                      </span>
+                    </div>
+                    <div className="report-track">
+                      <span style={{ width: `${Math.min(100, Math.max(4, budget.percentageUsed))}%` }} />
+                    </div>
+                    <small>
+                      {formatCents(budget.spentCents)} of {formatCents(budget.monthlyLimitCents)}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </section>
+      )}
     </main>
   );
 };

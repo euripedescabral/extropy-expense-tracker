@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildExpenseCsv,
   filterExpenses,
+  getBudgetSummaries,
   getCategoryBreakdown,
   getMonthlyTotal,
+  getMonthlyTrends,
+  normalizeBudgetInput,
   normalizeExpenseInput
 } from "./reports";
 
@@ -82,5 +86,70 @@ describe("expense reporting", () => {
       { categoryId: "entertainment", totalCents: 1999, percentage: 25.63 },
       { categoryId: "food", totalCents: 1299, percentage: 16.66 }
     ]);
+  });
+
+  it("normalizes budget input and rejects invalid budget values", () => {
+    expect(normalizeBudgetInput({ categoryId: "food", amount: "250.50" })).toEqual({
+      categoryId: "food",
+      monthlyLimitCents: 25050
+    });
+
+    expect(() => normalizeBudgetInput({ categoryId: "", amount: "0" })).toThrow(/budget/i);
+  });
+
+  it("summarizes category budgets against monthly spending", () => {
+    expect(
+      getBudgetSummaries({
+        expenses,
+        budgets: [
+          { userId: "user_1", categoryId: "food", monthlyLimitCents: 5000 },
+          { userId: "user_1", categoryId: "transport", monthlyLimitCents: 4000 }
+        ],
+        month: "2026-06"
+      })
+    ).toEqual([
+      {
+        userId: "user_1",
+        categoryId: "transport",
+        monthlyLimitCents: 4000,
+        spentCents: 4500,
+        remainingCents: -500,
+        percentageUsed: 112.5,
+        status: "over"
+      },
+      {
+        userId: "user_1",
+        categoryId: "food",
+        monthlyLimitCents: 5000,
+        spentCents: 1299,
+        remainingCents: 3701,
+        percentageUsed: 25.98,
+        status: "under"
+      }
+    ]);
+  });
+
+  it("builds monthly spending trends sorted by month", () => {
+    expect(getMonthlyTrends(expenses)).toEqual([
+      { month: "2026-05", totalCents: 1999 },
+      { month: "2026-06", totalCents: 5799 }
+    ]);
+  });
+
+  it("exports expenses as csv with escaped values and category names", () => {
+    expect(
+      buildExpenseCsv([
+        {
+          id: "exp_csv",
+          userId: "user_1",
+          amountCents: 1299,
+          description: "Lunch, with team",
+          categoryId: "food",
+          occurredOn: "2026-06-01"
+        }
+      ], {
+        food: "Food"
+      })
+    ).toBe('Date,Description,Category,Amount\n2026-06-01,"Lunch, with team",Food,12.99');
   });
 });

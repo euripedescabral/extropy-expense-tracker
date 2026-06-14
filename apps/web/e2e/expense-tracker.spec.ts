@@ -14,6 +14,12 @@ type Category = {
   kind: "system" | "custom";
 };
 
+type Budget = {
+  userId: string;
+  categoryId: string;
+  monthlyLimitCents: number;
+};
+
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 test.describe("expense tracker critical flows", () => {
@@ -24,6 +30,7 @@ test.describe("expense tracker critical flows", () => {
       { id: "transport", name: "Transport", kind: "system" },
       { id: "entertainment", name: "Entertainment", kind: "system" }
     ];
+    const budgets: Budget[] = [];
 
     await page.route("**/api/auth/*", async (route) => {
       await route.fulfill({
@@ -130,6 +137,31 @@ test.describe("expense tracker critical flows", () => {
         await wait(350);
       }
       await route.fulfill({ status: 200, json: expenses });
+    });
+
+    await page.route("**/api/budgets**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+
+      if (request.method() === "PUT") {
+        const categoryId = url.pathname.split("/").at(-1) ?? "unknown";
+        const body = request.postDataJSON() as { amount: string };
+        const budget = {
+          userId: "user_1",
+          categoryId,
+          monthlyLimitCents: Math.round(Number(body.amount) * 100)
+        };
+        const index = budgets.findIndex((item) => item.categoryId === categoryId);
+        if (index >= 0) {
+          budgets[index] = budget;
+        } else {
+          budgets.push(budget);
+        }
+        await route.fulfill({ status: 200, json: budget });
+        return;
+      }
+
+      await route.fulfill({ status: 200, json: budgets });
     });
   });
 
@@ -285,5 +317,41 @@ test.describe("expense tracker critical flows", () => {
     await page.getByRole("button", { name: "Delete Slow coffee" }).click();
     await expect(page.getByRole("button", { name: "Delete Slow coffee" })).toContainText("Deleting");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Slow coffee" })).toBeHidden();
+  });
+
+  test("sets category budgets, shows trend charts, and exports csv from the report view", async ({ page }) => {
+    const downloadPromise = page.waitForEvent("download");
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await page.getByLabel("Amount").fill("80.00");
+    await page.getByLabel("Description").fill("June groceries");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByLabel("Amount").fill("20.00");
+    await page.getByLabel("Description").fill("May bus pass");
+    await page.getByTestId("expense-category").selectOption("transport");
+    await page.getByLabel("Date", { exact: true }).fill("2026-05-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await expect(page.getByRole("heading", { name: "Detailed report" })).toBeVisible();
+    await expect(page.getByTestId("spending-trends")).toContainText("2026-05");
+    await expect(page.getByTestId("spending-trends")).toContainText("2026-06");
+
+    await page.getByLabel("Budget category").selectOption("food");
+    await page.getByLabel("Monthly budget").fill("100.00");
+    await page.getByRole("button", { name: "Save budget" }).click();
+
+    await expect(page.getByTestId("budget-summary")).toContainText("Food");
+    await expect(page.getByTestId("budget-summary")).toContainText("$20.00 left");
+
+    await page.getByRole("button", { name: "Export CSV" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("expenses.csv");
   });
 });

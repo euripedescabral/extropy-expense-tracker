@@ -216,6 +216,27 @@ p {
   background: rgb(255 255 255 / 9%);
 }
 
+.view-switcher {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.view-switcher button {
+  min-width: 132px;
+}
+
+.view-switcher .active {
+  background: #6effa8;
+  color: #071009;
+}
+
+.view-switcher .secondary-action {
+  border-color: rgb(190 245 208 / 32%);
+  background: rgb(255 255 255 / 5%);
+  color: #edf7ef;
+}
+
 .app-shell {
   width: min(1220px, 100%);
   margin: 0 auto;
@@ -295,6 +316,12 @@ p {
   gap: 16px;
 }
 
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+  gap: 16px;
+}
+
 .panel {
   display: grid;
   align-content: start;
@@ -314,6 +341,10 @@ p {
 
 .wide {
   grid-column: span 2;
+}
+
+.wide-report {
+  grid-column: 1 / -1;
 }
 
 .toolbar {
@@ -352,6 +383,34 @@ p {
   font-weight: 800;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-grid div {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgb(190 245 208 / 13%);
+  border-radius: 8px;
+  background: rgb(3 7 5 / 50%);
+  padding: 16px;
+}
+
+.summary-grid span {
+  color: #87a894;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-grid strong {
+  color: #6effa8;
+  font-size: 1.55rem;
+}
+
 .empty-state {
   display: grid;
   gap: 12px;
@@ -372,6 +431,42 @@ p {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.trend-list,
+.budget-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trend-list li,
+.budget-list li {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-list div:first-child,
+.budget-list div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trend-list span,
+.budget-list span,
+.budget-list small {
+  color: #b6c8bc;
+}
+
+.budget-list li[data-status="over"] .report-track span {
+  background: linear-gradient(90deg, #ff6e6e, #f7c46c);
+}
+
+.budget-list li[data-status="near"] .report-track span {
+  background: linear-gradient(90deg, #f7c46c, #fff2a8);
 }
 
 .report-list li {
@@ -465,6 +560,7 @@ p {
   }
 
   .layout-grid,
+  .report-grid,
   .toolbar {
     grid-template-columns: 1fr;
   }
@@ -485,7 +581,8 @@ p {
   }
 
   .hero-ledger,
-  .metric-strip {
+  .metric-strip,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 
