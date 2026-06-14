@@ -24,6 +24,14 @@
 - `pnpm run typecheck`
 - `pnpm run lint`
 - `pnpm run build`
+- `pnpm run test:e2e` for user-facing flow changes
+
+## AWS Operations
+
+- Follow [docs/aws-operations.md](docs/aws-operations.md) for console login, AWS CLI profile setup, CDK bootstrap/deploy, and frontend upload.
+- Never commit AWS credentials, root login details, MFA recovery codes, account IDs, billing data, `.env`, or CLI credential files.
+- Before any deploy, run `aws sts get-caller-identity` and confirm the expected account/profile.
+- Default deployment profile is `extropy-expense-tracker`; default region is `us-east-1`.
 
 ## Commit Style
 

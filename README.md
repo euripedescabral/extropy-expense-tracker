@@ -49,12 +49,14 @@ pnpm run build
 
 ## Deploy
 
+AWS login, CLI profile setup, bootstrap, deploy, and frontend upload instructions live in [docs/aws-operations.md](docs/aws-operations.md).
+
 The CDK stack is scaffolded in `infra`:
 
 ```bash
 pnpm --filter @expense-tracker/infra build
-pnpm --filter @expense-tracker/infra exec cdk synth
-pnpm --filter @expense-tracker/infra exec cdk deploy
+pnpm --filter @expense-tracker/infra exec cdk synth --app "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
+pnpm --filter @expense-tracker/infra exec cdk deploy --app "pnpm --filter @expense-tracker/infra exec tsx src/index.ts"
 ```
 
 After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_API_BASE_URL` to the emitted API URL for production builds.
