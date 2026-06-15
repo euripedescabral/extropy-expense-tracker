@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 type Expense = {
@@ -688,6 +689,16 @@ test.describe("expense tracker critical flows", () => {
     await page.getByRole("button", { name: "Open detailed report" }).click();
     await expect(page.getByTestId("spending-trends")).toContainText("2026-05");
     await expect(page.getByTestId("spending-trends")).toContainText("2026-06");
+    const customRangeDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export CSV" }).click();
+    const customRangeDownload = await customRangeDownloadPromise;
+    expect(customRangeDownload.suggestedFilename()).toBe("expenses.csv");
+    const customRangeCsvPath = await customRangeDownload.path();
+    expect(customRangeCsvPath).not.toBeNull();
+    const customRangeCsv = await readFile(customRangeCsvPath as string, "utf8");
+    expect(customRangeCsv).toContain("Date,Description,Category,Amount");
+    expect(customRangeCsv).toContain("2026-06-14,June groceries,Food,80.00");
+    expect(customRangeCsv).toContain("2026-05-14,May bus pass,Transport,20.00");
 
     await page.getByRole("button", { name: "Open dashboard" }).click();
     await page.getByTestId("filter-category").selectOption("entertainment");
@@ -711,6 +722,12 @@ test.describe("expense tracker critical flows", () => {
     await page.getByRole("button", { name: "Export CSV" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("expenses.csv");
+    const csvPath = await download.path();
+    expect(csvPath).not.toBeNull();
+    const csv = await readFile(csvPath as string, "utf8");
+    expect(csv).toContain("Date,Description,Category,Amount");
+    expect(csv).toContain("2026-06-14,June groceries,Food,80.00");
+    expect(csv).not.toContain("2026-05-14,May bus pass,Transport,20.00");
   });
 
   test("sets monthly goals and shows a mood indicator instead of repetitive totals", async ({ page }) => {
