@@ -303,6 +303,7 @@ test.describe("expense tracker critical flows", () => {
 
     await page.getByTestId("filter-category").selectOption("transport");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Clear filters" })).toHaveCount(1);
 
     await page.getByTestId("filter-category").selectOption("food");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeVisible();
@@ -658,7 +659,6 @@ test.describe("expense tracker critical flows", () => {
   });
 
   test("sets category budgets, shows trend charts, and exports csv from the report view", async ({ page }) => {
-    const downloadPromise = page.waitForEvent("download");
     await page.goto("/");
     await page.getByLabel("Email").fill("ada@example.com");
     await page.getByLabel("Password").fill("CorrectHorse123!");
@@ -678,8 +678,27 @@ test.describe("expense tracker critical flows", () => {
 
     await page.getByRole("button", { name: "Open detailed report" }).click();
     await expect(page.getByRole("heading", { name: "Detailed report" })).toBeVisible();
+    await expect(page.getByTestId("spending-trends")).toContainText("2026-06");
+    await expect(page.getByTestId("spending-trends")).not.toContainText("2026-05");
+
+    await page.getByRole("button", { name: "Open dashboard" }).click();
+    await page.getByLabel("Period").selectOption("custom");
+    await page.getByLabel("From date").fill("2026-05-01");
+    await page.getByLabel("To date").fill("2026-06-30");
+    await page.getByRole("button", { name: "Open detailed report" }).click();
     await expect(page.getByTestId("spending-trends")).toContainText("2026-05");
     await expect(page.getByTestId("spending-trends")).toContainText("2026-06");
+
+    await page.getByRole("button", { name: "Open dashboard" }).click();
+    await page.getByTestId("filter-category").selectOption("entertainment");
+    await expect(page.getByText("No expenses found for this period.")).toBeVisible();
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await expect(page.getByTestId("spending-trends")).toContainText("No trend data yet.");
+    await expect(page.getByTestId("spending-trends")).not.toContainText("2026-06");
+
+    await page.getByRole("button", { name: "Open dashboard" }).click();
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByRole("button", { name: "Open detailed report" }).click();
 
     await page.getByLabel("Budget category").selectOption("food");
     await page.getByLabel("Monthly budget").fill("100.00");
@@ -688,6 +707,7 @@ test.describe("expense tracker critical flows", () => {
     await expect(page.getByTestId("budget-summary")).toContainText("Food");
     await expect(page.getByTestId("budget-summary")).toContainText("$20.00 left");
 
+    const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Export CSV" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("expenses.csv");

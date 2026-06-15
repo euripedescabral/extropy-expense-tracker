@@ -245,7 +245,7 @@ export const App = () => {
     ...item,
     categoryName: categoryNameById[item.categoryId] ?? item.categoryId
   }));
-  const trends = getMonthlyTrends(expenses);
+  const trends = getMonthlyTrends(visibleExpenses);
   const maxTrendCents = Math.max(...trends.map((trend) => trend.totalCents), 1);
   const goalSpend = getMonthlyGoalSpend({
     expenses: visibleExpenses,
@@ -859,17 +859,6 @@ export const App = () => {
               ) : visibleExpenses.length === 0 ? (
                 <div className="empty-state">
                   <strong>{report.emptyMessage}</strong>
-                  {hasActiveFilters ? (
-                    <button
-                      className="secondary-action"
-                      type="button"
-                      aria-label="Clear filters"
-                      onClick={clearFilters}
-                    >
-                      <SearchX aria-hidden="true" />
-                      Clear
-                    </button>
-                  ) : null}
                 </div>
               ) : (
                 <ul className="expense-list">

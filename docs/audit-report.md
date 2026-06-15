@@ -46,7 +46,7 @@ The recorded final dashboard total is `$543.63`.
 | Project deploy gate | Pass | CDK deploy completed, frontend synced to S3, CloudFront invalidated. |
 | API smoke | Pass | Signup, login, categories, create/update/delete expense, and list routes passed against deployed API. |
 | UI smoke | Pass | Login and expense creation were exercised through the deployed UI. |
-| E2E coverage | Pass | Playwright covers signup, login, add/edit/delete, category filtering, date filtering, custom category, reports, and mobile. |
+| E2E coverage | Pass | Playwright covers signup, login, add/edit/delete, category filtering, period filtering, custom category, budgets, goals, fixed expenses, CSV export, loading states, money masks, report zero states, responsive layout, and mobile. |
 | User scope isolation | Pass | DynamoDB partition keys are user-scoped and route handlers only operate under the authenticated user id. |
 | Storage key exposure | Fixed | Repository responses strip internal `pk` and `sk` values before API responses. |
 | Lambda configuration | Pass | Lambda uses Node.js 20, required env vars, 512 MB memory, and a 10 second timeout after cold-start smoke testing. |
@@ -77,6 +77,7 @@ Reference: AWS Lambda best practices, https://docs.aws.amazon.com/lambda/latest/
 - No rate limiting is configured at API Gateway. For production, add throttling, WAF rules, or usage plans depending on exposure.
 - Observability is minimal. For production, add structured logs, alarms for Lambda errors/duration, and CloudWatch dashboards.
 - The reusable smoke login is intentionally documented for review; it must not be reused for real user data.
+- Report trends intentionally follow the active ledger filters. Empty filtered states should not show trend bars from hidden expenses.
 
 ## Final Verification Checklist
 
