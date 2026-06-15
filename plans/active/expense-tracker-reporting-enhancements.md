@@ -21,6 +21,7 @@ Success criteria:
 - The report generates a mood indicator from current period spend versus those targets.
 - Users can export visible ledger rows to CSV.
 - Users can see monthly spending trend bars and budget progress.
+- Dashboard controls, ledger, and report modules render in predictable desktop/mobile regions without horizontal overflow.
 - Local and live smoke gates pass.
 
 Explicit exclusions:
@@ -91,6 +92,7 @@ Deployment controls: backend routes deploy through CDK; frontend build syncs to 
 | Spending trends | Add expenses in multiple months | Report shows sorted monthly trend bars | Core unit + Playwright |
 | Budget progress | Add June expenses and budget | Report shows remaining/over-budget status | Core unit + Playwright |
 | Loading/error states | Load dashboard and save mutations | Skeletons and disabled buttons prevent duplicate actions | Playwright |
+| Responsive layout | Open dashboard on desktop/mobile | Creation controls, ledger content, and report modules occupy stable regions with no horizontal overflow | Playwright |
 
 ## Layer 7 - Meta
 
@@ -101,6 +103,8 @@ Decisions:
 - Keep fixed expenses separate from transaction entries so recurring commitments are easy to manage and count toward monthly goals without duplicating ledger rows each month.
 - Default the ledger to the current month and require Custom range before editing dates directly.
 - Export the currently visible ledger because filters are the user's current report context.
+- Use a two-region dashboard layout: left action rail for creation/configuration and right content stack for ledger plus analytics.
+- Flatten the detailed report summary so the toolbar, mood, goals, and insights are peer modules rather than nested cards.
 
 Blast radius: shared reporting functions, authenticated Lambda router, DynamoDB repository, main React app, smoke script, README assets.
 

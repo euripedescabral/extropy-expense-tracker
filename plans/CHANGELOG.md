@@ -7,3 +7,4 @@
 - 2026-06-14: Added reporting enhancement plan for detailed reports, category budgets, CSV export, trend visualization, demo assets, and live smoke coverage.
 - 2026-06-14: Expanded reporting plan with period presets, custom 90-day range validation, monthly expense/savings goals, and financial mood indicator.
 - 2026-06-14: Expanded reporting plan with configurable fixed monthly expenses that count toward every monthly goal and are covered by unit/API/E2E/live smoke tests.
+- 2026-06-14: Reorganized dashboard and report layout into stable responsive regions with E2E coverage for desktop/mobile overflow.

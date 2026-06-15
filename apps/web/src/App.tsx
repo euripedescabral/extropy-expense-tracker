@@ -659,115 +659,118 @@ export const App = () => {
       </section>
 
       {activeView === "dashboard" ? (
-      <section className="layout-grid">
-        <form className="panel" onSubmit={(event) => event.preventDefault()}>
-          <div className="panel-heading">
-            <span className="panel-kicker">Transaction intake</span>
-            <h2>Add expense</h2>
-            {editingExpenseId ? <p>Editing selected transaction</p> : null}
-          </div>
-          <label>
-            Amount
-            <input
-              value={expenseForm.amount}
-              disabled={expenseSaving || isLoadingDashboard}
-              onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
-              inputMode="decimal"
-            />
-          </label>
-          <label>
-            Description
-            <input
-              value={expenseForm.description}
-              disabled={expenseSaving || isLoadingDashboard}
-              onChange={(event) =>
-                setExpenseForm({ ...expenseForm, description: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Category
-            <select
-              data-testid="expense-category"
-              value={expenseForm.categoryId}
-              disabled={expenseSaving || isLoadingDashboard || categories.length === 0}
-              onChange={(event) =>
-                setExpenseForm({ ...expenseForm, categoryId: event.target.value })
-              }
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Date
-            <input
-              value={expenseForm.occurredOn}
-              disabled={expenseSaving || isLoadingDashboard}
-              onChange={(event) =>
-                setExpenseForm({ ...expenseForm, occurredOn: event.target.value })
-              }
-              type="date"
-            />
-          </label>
-          <button
-            type="button"
-            aria-label={editingExpenseId ? "Save expense" : "Add expense"}
-            disabled={!canSubmitExpense}
-            onClick={() => void addExpense()}
-          >
-            {expenseSaving ? (
-              <LoaderCircle aria-hidden="true" />
-            ) : editingExpenseId ? (
-              <Save aria-hidden="true" />
-            ) : (
-              <Plus aria-hidden="true" />
-            )}
-            {expenseSaving ? "Saving" : editingExpenseId ? "Save" : "Add"}
-          </button>
-          {editingExpenseId ? (
-            <button
-              className="secondary-action"
-              type="button"
-              aria-label="Cancel edit"
-              disabled={expenseSaving}
-              onClick={cancelEditingExpense}
-            >
-              <SearchX aria-hidden="true" />
-              Cancel
-            </button>
-          ) : null}
-        </form>
+        <section className="dashboard-layout" data-testid="dashboard-layout">
+          <div className="dashboard-actions" data-testid="dashboard-actions">
+            <form className="panel" onSubmit={(event) => event.preventDefault()}>
+              <div className="panel-heading">
+                <span className="panel-kicker">Transaction intake</span>
+                <h2>Add expense</h2>
+                {editingExpenseId ? <p>Editing selected transaction</p> : null}
+              </div>
+              <label>
+                Amount
+                <input
+                  value={expenseForm.amount}
+                  disabled={expenseSaving || isLoadingDashboard}
+                  onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+                  inputMode="decimal"
+                />
+              </label>
+              <label>
+                Description
+                <input
+                  value={expenseForm.description}
+                  disabled={expenseSaving || isLoadingDashboard}
+                  onChange={(event) =>
+                    setExpenseForm({ ...expenseForm, description: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Category
+                <select
+                  data-testid="expense-category"
+                  value={expenseForm.categoryId}
+                  disabled={expenseSaving || isLoadingDashboard || categories.length === 0}
+                  onChange={(event) =>
+                    setExpenseForm({ ...expenseForm, categoryId: event.target.value })
+                  }
+                >
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Date
+                <input
+                  value={expenseForm.occurredOn}
+                  disabled={expenseSaving || isLoadingDashboard}
+                  onChange={(event) =>
+                    setExpenseForm({ ...expenseForm, occurredOn: event.target.value })
+                  }
+                  type="date"
+                />
+              </label>
+              <button
+                type="button"
+                aria-label={editingExpenseId ? "Save expense" : "Add expense"}
+                disabled={!canSubmitExpense}
+                onClick={() => void addExpense()}
+              >
+                {expenseSaving ? (
+                  <LoaderCircle aria-hidden="true" />
+                ) : editingExpenseId ? (
+                  <Save aria-hidden="true" />
+                ) : (
+                  <Plus aria-hidden="true" />
+                )}
+                {expenseSaving ? "Saving" : editingExpenseId ? "Save" : "Add"}
+              </button>
+              {editingExpenseId ? (
+                <button
+                  className="secondary-action"
+                  type="button"
+                  aria-label="Cancel edit"
+                  disabled={expenseSaving}
+                  onClick={cancelEditingExpense}
+                >
+                  <SearchX aria-hidden="true" />
+                  Cancel
+                </button>
+              ) : null}
+            </form>
 
-        <section className="panel">
-          <div className="panel-heading">
-            <span className="panel-kicker">Ledger structure</span>
-            <h2>Categories</h2>
+            <section className="panel">
+              <div className="panel-heading">
+                <span className="panel-kicker">Ledger structure</span>
+                <h2>Categories</h2>
+              </div>
+              <label>
+                New category
+                <input
+                  value={newCategory}
+                  disabled={categorySaving || isLoadingDashboard}
+                  onChange={(event) => setNewCategory(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                aria-label="Add category"
+                disabled={!canAddCategory}
+                onClick={() => void addCategory()}
+              >
+                {categorySaving ? <LoaderCircle aria-hidden="true" /> : <BookOpen aria-hidden="true" />}
+                {categorySaving ? "Saving" : "Add"}
+              </button>
+            </section>
           </div>
-          <label>
-            New category
-            <input
-              value={newCategory}
-              disabled={categorySaving || isLoadingDashboard}
-              onChange={(event) => setNewCategory(event.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            aria-label="Add category"
-            disabled={!canAddCategory}
-            onClick={() => void addCategory()}
-          >
-            {categorySaving ? <LoaderCircle aria-hidden="true" /> : <BookOpen aria-hidden="true" />}
-            {categorySaving ? "Saving" : "Add"}
-          </button>
-        </section>
 
-        <section className="panel wide">
-          <div className="toolbar">
+          <div className="dashboard-content" data-testid="dashboard-content">
+            <section className="panel ledger-panel">
+              <div className="toolbar">
             <div className="panel-heading">
               <span className="panel-kicker">Filtered ledger</span>
               <h2>Expense list</h2>
@@ -835,92 +838,93 @@ export const App = () => {
                 Clear
               </button>
             ) : null}
-          </div>
-          {isLoadingDashboard ? (
-            <SkeletonRows count={4} />
-          ) : visibleExpenses.length === 0 ? (
-            <div className="empty-state">
-              <strong>{report.emptyMessage}</strong>
-              {hasActiveFilters ? (
-                <button
-                  className="secondary-action"
-                  type="button"
-                  aria-label="Clear filters"
-                  onClick={clearFilters}
-                >
-                  <SearchX aria-hidden="true" />
-                  Clear
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <ul className="expense-list">
-              {visibleExpenses.map((expense) => (
-                <li key={expense.id}>
-                  <span>
-                    <strong data-testid="expense-description">{expense.description}</strong>
-                    <small>{categoryNameById[expense.categoryId] ?? expense.categoryId}</small>
-                  </span>
-                  <span className="expense-amount">{formatCents(expense.amountCents)}</span>
-                  <button
-                    type="button"
-                    aria-label={`Edit ${expense.description}`}
-                    disabled={expenseSaving || deletingExpenseId !== null}
-                    onClick={() => startEditingExpense(expense)}
-                  >
-                    <Edit3 aria-hidden="true" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${expense.description}`}
-                    disabled={expenseSaving || deletingExpenseId !== null}
-                    onClick={() => void deleteExpense(expense)}
-                  >
-                    {deletingExpenseId === expense.id ? (
-                      <LoaderCircle aria-hidden="true" />
-                    ) : (
-                      <Trash2 aria-hidden="true" />
-                    )}
-                    {deletingExpenseId === expense.id ? "Deleting" : "Delete"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+              </div>
+              {isLoadingDashboard ? (
+                <SkeletonRows count={4} />
+              ) : visibleExpenses.length === 0 ? (
+                <div className="empty-state">
+                  <strong>{report.emptyMessage}</strong>
+                  {hasActiveFilters ? (
+                    <button
+                      className="secondary-action"
+                      type="button"
+                      aria-label="Clear filters"
+                      onClick={clearFilters}
+                    >
+                      <SearchX aria-hidden="true" />
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <ul className="expense-list">
+                  {visibleExpenses.map((expense) => (
+                    <li key={expense.id}>
+                      <span>
+                        <strong data-testid="expense-description">{expense.description}</strong>
+                        <small>{categoryNameById[expense.categoryId] ?? expense.categoryId}</small>
+                      </span>
+                      <span className="expense-amount">{formatCents(expense.amountCents)}</span>
+                      <button
+                        type="button"
+                        aria-label={`Edit ${expense.description}`}
+                        disabled={expenseSaving || deletingExpenseId !== null}
+                        onClick={() => startEditingExpense(expense)}
+                      >
+                        <Edit3 aria-hidden="true" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${expense.description}`}
+                        disabled={expenseSaving || deletingExpenseId !== null}
+                        onClick={() => void deleteExpense(expense)}
+                      >
+                        {deletingExpenseId === expense.id ? (
+                          <LoaderCircle aria-hidden="true" />
+                        ) : (
+                          <Trash2 aria-hidden="true" />
+                        )}
+                        {deletingExpenseId === expense.id ? "Deleting" : "Delete"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-        <section className="panel" data-testid="category-breakdown">
-          <div className="panel-heading">
-            <span className="panel-kicker">Spend intelligence</span>
-            <h2>Reports</h2>
+            <section className="panel spend-preview-panel" data-testid="category-breakdown">
+              <div className="panel-heading">
+                <span className="panel-kicker">Spend intelligence</span>
+                <h2>Reports</h2>
+              </div>
+              {isLoadingDashboard ? (
+                <SkeletonRows count={3} />
+              ) : report.rows.length === 0 ? (
+                <p>No category spending yet.</p>
+              ) : (
+                <ul className="report-list compact-report-list">
+                  {report.rows.map((row) => (
+                    <li key={row.label}>
+                      <div>
+                        <strong>{row.label}</strong>
+                        <span>{row.amount}</span>
+                      </div>
+                      <div className="report-track">
+                        <span style={{ width: row.percentageLabel }} />
+                      </div>
+                      <small>{row.percentageLabel}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
-          {isLoadingDashboard ? (
-            <SkeletonRows count={3} />
-          ) : report.rows.length === 0 ? (
-            <p>No category spending yet.</p>
-          ) : (
-            <ul className="report-list">
-              {report.rows.map((row) => (
-                <li key={row.label}>
-                  <div>
-                    <strong>{row.label}</strong>
-                    <span>{row.amount}</span>
-                  </div>
-                  <div className="report-track">
-                    <span style={{ width: row.percentageLabel }} />
-                  </div>
-                  <small>{row.percentageLabel}</small>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
-      </section>
       ) : (
         <section className="report-grid">
-          <section className="panel wide-report">
-            <div className="toolbar">
+          <section className="report-summary wide-report">
+            <div className="panel report-toolbar">
               <div className="panel-heading">
                 <span className="panel-kicker">Goal-based report</span>
                 <h2>Detailed report</h2>

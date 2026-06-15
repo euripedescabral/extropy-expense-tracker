@@ -418,6 +418,54 @@ test.describe("expense tracker critical flows", () => {
     await expect(page.getByTestId("expense-description").filter({ hasText: "Slow coffee" })).toBeHidden();
   });
 
+  test("keeps dashboard controls and ledger in predictable responsive regions", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await expect(page.getByTestId("dashboard-layout")).toBeVisible();
+    await expect(page.getByTestId("dashboard-actions")).toBeVisible();
+    await expect(page.getByTestId("dashboard-content")).toBeVisible();
+
+    const desktopRegions = await page.evaluate(() => {
+      const actions = document.querySelector("[data-testid='dashboard-actions']")?.getBoundingClientRect();
+      const content = document.querySelector("[data-testid='dashboard-content']")?.getBoundingClientRect();
+
+      return {
+        actions,
+        content,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth
+      };
+    });
+
+    expect(desktopRegions.actions).toBeTruthy();
+    expect(desktopRegions.content).toBeTruthy();
+    expect(desktopRegions.actions!.right).toBeLessThan(desktopRegions.content!.left);
+    expect(desktopRegions.documentWidth).toBeLessThanOrEqual(desktopRegions.viewportWidth);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const mobileRegions = await page.evaluate(() => {
+      const actions = document.querySelector("[data-testid='dashboard-actions']")?.getBoundingClientRect();
+      const content = document.querySelector("[data-testid='dashboard-content']")?.getBoundingClientRect();
+
+      return {
+        actions,
+        content,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth
+      };
+    });
+
+    expect(mobileRegions.actions).toBeTruthy();
+    expect(mobileRegions.content).toBeTruthy();
+    expect(mobileRegions.content!.top).toBeGreaterThan(mobileRegions.actions!.bottom);
+    expect(mobileRegions.documentWidth).toBeLessThanOrEqual(mobileRegions.viewportWidth);
+  });
+
   test("sets category budgets, shows trend charts, and exports csv from the report view", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.goto("/");
