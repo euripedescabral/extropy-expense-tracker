@@ -608,6 +608,15 @@ export const App = () => {
           <h1>Expenses</h1>
         </div>
         <div className="header-actions" aria-label="Dashboard summary">
+          <span
+            className="global-mood-chip"
+            data-testid="global-mood-chip"
+            data-status={financialMood?.status ?? "unset"}
+          >
+            <Gauge aria-hidden="true" />
+            <small>Mood</small>
+            <strong>{financialMood?.label ?? "Set goal"}</strong>
+          </span>
           <span>{visibleExpenses.length} transactions</span>
           <span>{categories.length} categories</span>
         </div>

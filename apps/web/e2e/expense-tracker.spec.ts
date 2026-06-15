@@ -524,6 +524,31 @@ test.describe("expense tracker critical flows", () => {
     );
   });
 
+  test("keeps the financial mood visible in the top navigation", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await expect(page.getByTestId("global-mood-chip")).toBeVisible();
+    await expect(page.getByTestId("global-mood-chip")).toContainText("Set goal");
+
+    await page.getByLabel("Amount").fill("80.00");
+    await page.getByLabel("Description").fill("June groceries");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await page.getByLabel("Monthly expense limit").fill("100.00");
+    await page.getByLabel("Saving target").fill("30.00");
+    await page.getByRole("button", { name: "Save goals" }).click();
+
+    await expect(page.getByTestId("global-mood-chip")).toContainText("Watchful");
+    await page.getByRole("button", { name: "Open dashboard" }).click();
+    await expect(page.getByTestId("global-mood-chip")).toContainText("Watchful");
+  });
+
   test("sets category budgets, shows trend charts, and exports csv from the report view", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.goto("/");

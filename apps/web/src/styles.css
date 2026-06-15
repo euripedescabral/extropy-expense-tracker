@@ -151,7 +151,7 @@ p {
 
 .hero-ledger div,
 .metric-strip div,
-.header-actions span {
+.header-actions > span {
   border: 1px solid rgb(190 245 208 / 16%);
   background: rgb(12 22 16 / 72%);
 }
@@ -164,7 +164,7 @@ p {
 
 .hero-ledger span,
 .metric-strip span,
-.header-actions span,
+.header-actions > span,
 .panel-kicker,
 .eyebrow {
   color: #87a894;
@@ -268,10 +268,47 @@ p {
   gap: 8px;
 }
 
-.header-actions span {
+.header-actions > span {
   min-height: 36px;
   border-radius: 999px;
   padding: 10px 14px;
+}
+
+.global-mood-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #edf7ef;
+}
+
+.global-mood-chip svg {
+  width: 16px;
+  height: 16px;
+  color: #6effa8;
+}
+
+.global-mood-chip small {
+  color: #87a894;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.global-mood-chip strong {
+  color: #6effa8;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.global-mood-chip[data-status="watchful"] svg,
+.global-mood-chip[data-status="watchful"] strong {
+  color: #f7c46c;
+}
+
+.global-mood-chip[data-status="stressed"] svg,
+.global-mood-chip[data-status="stressed"] strong {
+  color: #ff8c8c;
 }
 
 .hero-panel {

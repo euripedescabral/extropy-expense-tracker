@@ -19,6 +19,7 @@ Success criteria:
 - Users can configure fixed monthly expenses that count toward every monthly goal without cluttering the transaction ledger.
 - Users can set a monthly expense limit and desired saving target.
 - The report generates a mood indicator from current period spend versus those targets.
+- The current financial mood remains visible in the top header while users work in any view.
 - Users can export visible ledger rows to CSV.
 - Users can see monthly spending trend bars and budget progress.
 - Dashboard controls, ledger, and report modules render in predictable desktop/mobile regions without horizontal overflow.
@@ -89,6 +90,7 @@ Deployment controls: backend routes deploy through CDK; frontend build syncs to 
 | Period presets | Select last 7, last 14, last 30, current month, or last month | Ledger/report use computed date range | Unit + Playwright |
 | Custom dates | Select custom and enter from/to | Ranges over 90 days show validation and are not treated as valid goals | Unit + Playwright |
 | Mood indicator | Save goals with current spend | Report shows confident/watchful/stressed mood and buffer | Unit + Playwright |
+| Global mood | Login, save goals, switch views | Header mood chip is always visible and reflects the latest mood state | Playwright |
 | CSV export | Click CSV export | Browser downloads `expenses.csv` for visible ledger rows | Core unit + Playwright |
 | Spending trends | Add expenses in multiple months | Report shows sorted monthly trend bars | Core unit + Playwright |
 | Budget progress | Add June expenses and budget | Report shows remaining/over-budget status | Core unit + Playwright |
@@ -108,6 +110,7 @@ Decisions:
 - Use a two-region dashboard layout: left action rail for creation/configuration and right content stack for ledger plus analytics.
 - Flatten the detailed report summary so the toolbar, mood, goals, and insights are peer modules rather than nested cards.
 - Keep currency masking in the web layer only; core/API continue to receive simple decimal strings.
+- Surface mood as a compact header chip so users do not need to open the report page to see goal risk.
 
 Blast radius: shared reporting functions, authenticated Lambda router, DynamoDB repository, main React app, smoke script, README assets.
 

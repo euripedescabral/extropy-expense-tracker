@@ -9,3 +9,4 @@
 - 2026-06-14: Expanded reporting plan with configurable fixed monthly expenses that count toward every monthly goal and are covered by unit/API/E2E/live smoke tests.
 - 2026-06-14: Reorganized dashboard and report layout into stable responsive regions with E2E coverage for desktop/mobile overflow.
 - 2026-06-14: Added web-layer currency masks for all money inputs with unit and desktop/mobile E2E coverage for normalized API payloads.
+- 2026-06-14: Added a persistent header mood chip so financial mood remains visible across dashboard/report views.
