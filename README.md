@@ -52,6 +52,12 @@ pnpm run build
 
 AWS login, CLI profile setup, bootstrap, deploy, and frontend upload instructions live in [docs/aws-operations.md](docs/aws-operations.md).
 
+For AWS CloudShell, the repeatable one-command deploy path is:
+
+```bash
+bash scripts/deploy-cloudshell.sh
+```
+
 The CDK stack is scaffolded in `infra`:
 
 ```bash

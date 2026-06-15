@@ -117,7 +117,30 @@ Upload the archive in AWS Console:
 3. Select `Actions` -> `Upload file`.
 4. Upload the archive. If CloudShell refuses to overwrite an existing file, use a unique filename such as `extropy-expense-tracker-deploy.zip`.
 
-Run this in CloudShell:
+Run the reusable repo deploy script in CloudShell. This is the preferred path for every uploaded zip:
+
+```bash
+set -euo pipefail
+rm -rf extropy-expense-tracker-deploy
+unzip -qo extropy-expense-tracker-deploy.zip -d extropy-expense-tracker-deploy
+cd extropy-expense-tracker-deploy
+
+export AWS_REGION=us-east-2
+export AWS_DEFAULT_REGION=us-east-2
+export JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
+
+bash scripts/deploy-cloudshell.sh
+```
+
+If you need a faster repeat deploy after gates already passed locally, run:
+
+```bash
+RUN_GATES=0 bash scripts/deploy-cloudshell.sh
+```
+
+The script installs with the repo-pinned pnpm version, optionally runs gates, deploys CDK, builds the frontend with the emitted API URL, syncs S3, creates a CloudFront invalidation, and prints the live URLs.
+
+Manual equivalent, kept for debugging:
 
 ```bash
 set -euo pipefail
