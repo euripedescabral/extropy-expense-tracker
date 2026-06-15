@@ -39,6 +39,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  max-width: 100%;
   cursor: pointer;
   border-color: #6effa8;
   background: #6effa8;
@@ -77,6 +78,7 @@ button svg[class*="lucide-loader-circle"] {
 label {
   display: grid;
   gap: 8px;
+  min-width: 0;
   color: #b6c8bc;
   font-size: 0.88rem;
   font-weight: 700;
@@ -421,13 +423,28 @@ p {
 }
 
 .toolbar {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
-  grid-template-columns: minmax(0, 1.15fr) repeat(4, minmax(0, 1fr)) auto;
   gap: 12px;
   align-items: end;
   min-width: 0;
+}
+
+.toolbar .panel-heading {
+  flex: 1 1 220px;
+  min-width: min(220px, 100%);
+}
+
+.toolbar label {
+  flex: 1 1 150px;
+  min-width: min(150px, 100%);
+}
+
+.toolbar button {
+  flex: 0 1 auto;
+  min-width: min(112px, 100%);
 }
 
 .expense-list {
@@ -442,10 +459,11 @@ p {
 }
 
 .expense-list li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(88px, auto) minmax(72px, auto) minmax(92px, auto);
+  display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   border: 1px solid rgb(190 245 208 / 13%);
   border-radius: 8px;
@@ -459,6 +477,7 @@ p {
 }
 
 .expense-list li > span:first-child {
+  flex: 1 1 220px;
   min-width: 0;
 }
 
@@ -468,8 +487,26 @@ p {
 }
 
 .expense-amount {
+  flex: 0 0 auto;
   color: #f7c46c;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.expense-row-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.expense-row-actions button {
+  flex: 0 1 auto;
+  min-width: min(90px, 100%);
 }
 
 .summary-grid {
@@ -804,8 +841,7 @@ p {
 
   .dashboard-layout,
   .report-grid,
-  .goal-report,
-  .toolbar {
+  .goal-report {
     grid-template-columns: 1fr;
   }
 
@@ -857,10 +893,18 @@ p {
   }
 
   .expense-list li {
-    grid-template-columns: 1fr;
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .expense-list button {
+  .expense-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .expense-row-actions button,
+  .expense-row-actions .expense-amount {
     width: 100%;
   }
 }

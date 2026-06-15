@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 type Expense = {
   id: string;
@@ -35,6 +35,49 @@ type FixedExpense = {
 };
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+const expectNoDirectChildOverlap = async (page: Page, selectors: string[]) => {
+  const overlapReport = await page.evaluate((targetSelectors) => {
+    const overlaps = (first: DOMRect, second: DOMRect) =>
+      !(first.right <= second.left || second.right <= first.left || first.bottom <= second.top || second.bottom <= first.top);
+
+    return targetSelectors.flatMap((selector) => {
+      const root = document.querySelector(selector);
+
+      if (!root) {
+        return [{ selector, missing: true }];
+      }
+
+      const children = Array.from(root.children).map((child, index) => {
+        const box = child.getBoundingClientRect();
+
+        return {
+          index,
+          text: (child.textContent ?? child.getAttribute("aria-label") ?? "").trim().replace(/\s+/g, " "),
+          box
+        };
+      });
+
+      const collisions: Array<{ selector: string; first: string; second: string }> = [];
+
+      for (let firstIndex = 0; firstIndex < children.length; firstIndex += 1) {
+        for (let secondIndex = firstIndex + 1; secondIndex < children.length; secondIndex += 1) {
+          if (overlaps(children[firstIndex].box, children[secondIndex].box)) {
+            collisions.push({
+              selector,
+              first: children[firstIndex].text,
+              second: children[secondIndex].text
+            });
+          }
+        }
+      }
+
+      return collisions;
+    });
+  }, selectors);
+
+  expect(overlapReport).toEqual([]);
+};
 
 test.describe("expense tracker critical flows", () => {
   test.beforeEach(async ({ page }) => {
@@ -515,6 +558,20 @@ test.describe("expense tracker critical flows", () => {
     expect(mobileRegions.content).toBeTruthy();
     expect(mobileRegions.content!.top).toBeGreaterThan(mobileRegions.actions!.bottom);
     expect(mobileRegions.documentWidth).toBeLessThanOrEqual(mobileRegions.viewportWidth);
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 768, height: 900 },
+      { width: 1280, height: 900 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await expectNoDirectChildOverlap(page, [".toolbar", ".expense-list li", ".expense-row-actions"]);
+      const region = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth
+      }));
+      expect(region.documentWidth).toBeLessThanOrEqual(region.viewportWidth);
+    }
   });
 
   test("masks money fields while submitting normalized decimal payloads", async ({ page }) => {

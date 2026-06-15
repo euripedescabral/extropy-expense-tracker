@@ -879,29 +879,31 @@ export const App = () => {
                         <strong data-testid="expense-description">{expense.description}</strong>
                         <small>{categoryNameById[expense.categoryId] ?? expense.categoryId}</small>
                       </span>
-                      <span className="expense-amount">{formatCents(expense.amountCents)}</span>
-                      <button
-                        type="button"
-                        aria-label={`Edit ${expense.description}`}
-                        disabled={expenseSaving || deletingExpenseId !== null}
-                        onClick={() => startEditingExpense(expense)}
-                      >
-                        <Edit3 aria-hidden="true" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Delete ${expense.description}`}
-                        disabled={expenseSaving || deletingExpenseId !== null}
-                        onClick={() => void deleteExpense(expense)}
-                      >
-                        {deletingExpenseId === expense.id ? (
-                          <LoaderCircle aria-hidden="true" />
-                        ) : (
-                          <Trash2 aria-hidden="true" />
-                        )}
-                        {deletingExpenseId === expense.id ? "Deleting" : "Delete"}
-                      </button>
+                      <div className="expense-row-actions">
+                        <span className="expense-amount">{formatCents(expense.amountCents)}</span>
+                        <button
+                          type="button"
+                          aria-label={`Edit ${expense.description}`}
+                          disabled={expenseSaving || deletingExpenseId !== null}
+                          onClick={() => startEditingExpense(expense)}
+                        >
+                          <Edit3 aria-hidden="true" />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${expense.description}`}
+                          disabled={expenseSaving || deletingExpenseId !== null}
+                          onClick={() => void deleteExpense(expense)}
+                        >
+                          {deletingExpenseId === expense.id ? (
+                            <LoaderCircle aria-hidden="true" />
+                          ) : (
+                            <Trash2 aria-hidden="true" />
+                          )}
+                          {deletingExpenseId === expense.id ? "Deleting" : "Delete"}
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
