@@ -466,6 +466,64 @@ test.describe("expense tracker critical flows", () => {
     expect(mobileRegions.documentWidth).toBeLessThanOrEqual(mobileRegions.viewportWidth);
   });
 
+  test("masks money fields while submitting normalized decimal payloads", async ({ page }) => {
+    const submittedPayloads: Array<Record<string, string>> = [];
+
+    page.on("request", (request) => {
+      if (request.method() !== "POST" && request.method() !== "PUT") {
+        return;
+      }
+
+      const url = request.url();
+      if (
+        url.includes("/api/expenses") ||
+        url.includes("/api/budgets") ||
+        url.includes("/api/goals") ||
+        url.includes("/api/fixed-expenses")
+      ) {
+        submittedPayloads.push(request.postDataJSON() as Record<string, string>);
+      }
+    });
+
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await page.getByLabel("Amount").fill("1200.5");
+    await expect(page.getByLabel("Amount")).toHaveValue("$1,200.50");
+    await page.getByLabel("Description").fill("Masked expense");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await page.getByLabel("Monthly expense limit").fill("2500");
+    await page.getByLabel("Saving target").fill("500");
+    await expect(page.getByLabel("Monthly expense limit")).toHaveValue("$2,500.00");
+    await expect(page.getByLabel("Saving target")).toHaveValue("$500.00");
+    await page.getByRole("button", { name: "Save goals" }).click();
+
+    await page.getByLabel("Fixed amount").fill("1200");
+    await expect(page.getByLabel("Fixed amount")).toHaveValue("$1,200.00");
+    await page.getByLabel("Fixed description").fill("Rent");
+    await page.getByLabel("Fixed category").selectOption("food");
+    await page.getByRole("button", { name: "Add fixed expense" }).click();
+
+    await page.getByLabel("Monthly budget").fill("250.5");
+    await expect(page.getByLabel("Monthly budget")).toHaveValue("$250.50");
+    await page.getByRole("button", { name: "Save budget" }).click();
+
+    expect(submittedPayloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ amount: "1200.50" }),
+        expect.objectContaining({ expenseLimit: "2500.00", savingsTarget: "500.00" }),
+        expect.objectContaining({ amount: "1200.00", description: "Rent" }),
+        expect.objectContaining({ amount: "250.50" })
+      ])
+    );
+  });
+
   test("sets category budgets, shows trend charts, and exports csv from the report view", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.goto("/");

@@ -35,6 +35,7 @@ import {
   type FinancialGoal,
   type FixedExpense
 } from "@expense-tracker/core";
+import { formatMoneyInputValue, normalizeMoneyInputValue } from "./features/forms/moneyInput";
 import { buildReportViewModel } from "./features/expenses/reportViewModel";
 import "./styles.css";
 
@@ -81,6 +82,8 @@ const SkeletonRows = ({ count }: { count: number }) => (
     ))}
   </div>
 );
+
+const normalizeCentsForInput = (amountCents: number) => (amountCents / 100).toFixed(2);
 
 export const App = () => {
   const [token, setToken] = useState("");
@@ -198,8 +201,8 @@ export const App = () => {
         categoryId: nextCategories[0]?.id ?? ""
       }));
       setGoalForm({
-        expenseLimit: nextGoal ? String(nextGoal.monthlyExpenseLimitCents / 100) : "",
-        savingsTarget: nextGoal ? String(nextGoal.monthlySavingsTargetCents / 100) : ""
+        expenseLimit: nextGoal ? normalizeCentsForInput(nextGoal.monthlyExpenseLimitCents) : "",
+        savingsTarget: nextGoal ? normalizeCentsForInput(nextGoal.monthlySavingsTargetCents) : ""
       });
       setFixedExpenseForm((current) => ({
         ...current,
@@ -319,7 +322,7 @@ export const App = () => {
   const startEditingExpense = (expense: Expense) => {
     setEditingExpenseId(expense.id);
     setExpenseForm({
-      amount: String(expense.amountCents / 100),
+      amount: normalizeCentsForInput(expense.amountCents),
       description: expense.description,
       categoryId: expense.categoryId,
       occurredOn: expense.occurredOn
@@ -444,8 +447,8 @@ export const App = () => {
 
       setGoal(saved);
       setGoalForm({
-        expenseLimit: String(normalized.monthlyExpenseLimitCents / 100),
-        savingsTarget: String(normalized.monthlySavingsTargetCents / 100)
+        expenseLimit: normalizeCentsForInput(normalized.monthlyExpenseLimitCents),
+        savingsTarget: normalizeCentsForInput(normalized.monthlySavingsTargetCents)
       });
       setStatusMessage("");
     } catch {
@@ -670,9 +673,14 @@ export const App = () => {
               <label>
                 Amount
                 <input
-                  value={expenseForm.amount}
+                  value={formatMoneyInputValue(expenseForm.amount)}
                   disabled={expenseSaving || isLoadingDashboard}
-                  onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+                  onChange={(event) =>
+                    setExpenseForm({
+                      ...expenseForm,
+                      amount: normalizeMoneyInputValue(event.target.value)
+                    })
+                  }
                   inputMode="decimal"
                 />
               </label>
@@ -996,18 +1004,28 @@ export const App = () => {
                 <label>
                   Monthly expense limit
                   <input
-                    value={goalForm.expenseLimit}
+                    value={formatMoneyInputValue(goalForm.expenseLimit)}
                     disabled={goalSaving || isLoadingDashboard}
-                    onChange={(event) => setGoalForm({ ...goalForm, expenseLimit: event.target.value })}
+                    onChange={(event) =>
+                      setGoalForm({
+                        ...goalForm,
+                        expenseLimit: normalizeMoneyInputValue(event.target.value)
+                      })
+                    }
                     inputMode="decimal"
                   />
                 </label>
                 <label>
                   Saving target
                   <input
-                    value={goalForm.savingsTarget}
+                    value={formatMoneyInputValue(goalForm.savingsTarget)}
                     disabled={goalSaving || isLoadingDashboard}
-                    onChange={(event) => setGoalForm({ ...goalForm, savingsTarget: event.target.value })}
+                    onChange={(event) =>
+                      setGoalForm({
+                        ...goalForm,
+                        savingsTarget: normalizeMoneyInputValue(event.target.value)
+                      })
+                    }
                     inputMode="decimal"
                   />
                 </label>
@@ -1050,10 +1068,13 @@ export const App = () => {
             <label>
               Fixed amount
               <input
-                value={fixedExpenseForm.amount}
+                value={formatMoneyInputValue(fixedExpenseForm.amount)}
                 disabled={fixedExpenseSaving || isLoadingDashboard}
                 onChange={(event) =>
-                  setFixedExpenseForm({ ...fixedExpenseForm, amount: event.target.value })
+                  setFixedExpenseForm({
+                    ...fixedExpenseForm,
+                    amount: normalizeMoneyInputValue(event.target.value)
+                  })
                 }
                 inputMode="decimal"
               />
@@ -1168,8 +1189,13 @@ export const App = () => {
             <label>
               Monthly budget
               <input
-                value={budgetForm.amount}
-                onChange={(event) => setBudgetForm({ ...budgetForm, amount: event.target.value })}
+                value={formatMoneyInputValue(budgetForm.amount)}
+                onChange={(event) =>
+                  setBudgetForm({
+                    ...budgetForm,
+                    amount: normalizeMoneyInputValue(event.target.value)
+                  })
+                }
                 inputMode="decimal"
               />
             </label>
