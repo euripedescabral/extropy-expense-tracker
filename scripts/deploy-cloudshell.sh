@@ -47,7 +47,7 @@ $PNPM --filter @expense-tracker/infra exec cdk deploy "$STACK_NAME" \
 read_output() {
   local key="$1"
   node -e '
-const fs = require('node:fs');
+const fs = require("node:fs");
 const key = process.argv[1];
 const file = process.argv[2];
 const stackName = process.argv[3];
