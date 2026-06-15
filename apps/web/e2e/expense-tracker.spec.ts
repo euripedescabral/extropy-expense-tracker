@@ -20,6 +20,20 @@ type Budget = {
   monthlyLimitCents: number;
 };
 
+type FinancialGoal = {
+  userId: string;
+  monthlyExpenseLimitCents: number;
+  monthlySavingsTargetCents: number;
+};
+
+type FixedExpense = {
+  id: string;
+  userId: string;
+  amountCents: number;
+  description: string;
+  categoryId: string;
+};
+
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 test.describe("expense tracker critical flows", () => {
@@ -31,6 +45,8 @@ test.describe("expense tracker critical flows", () => {
       { id: "entertainment", name: "Entertainment", kind: "system" }
     ];
     const budgets: Budget[] = [];
+    const fixedExpenses: FixedExpense[] = [];
+    let goal: FinancialGoal | null = null;
 
     await page.route("**/api/auth/*", async (route) => {
       await route.fulfill({
@@ -163,6 +179,58 @@ test.describe("expense tracker critical flows", () => {
 
       await route.fulfill({ status: 200, json: budgets });
     });
+
+    await page.route("**/api/goals", async (route) => {
+      const request = route.request();
+
+      if (request.method() === "PUT") {
+        const body = request.postDataJSON() as { expenseLimit: string; savingsTarget: string };
+        goal = {
+          userId: "user_1",
+          monthlyExpenseLimitCents: Math.round(Number(body.expenseLimit) * 100),
+          monthlySavingsTargetCents: Math.round(Number(body.savingsTarget) * 100)
+        };
+        await route.fulfill({ status: 200, json: goal });
+        return;
+      }
+
+      await route.fulfill({ status: 200, json: goal });
+    });
+
+    await page.route("**/api/fixed-expenses**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+
+      if (request.method() === "POST") {
+        const body = request.postDataJSON() as {
+          amount: string;
+          description: string;
+          categoryId: string;
+        };
+        const fixedExpense = {
+          id: `fixed_${fixedExpenses.length + 1}`,
+          userId: "user_1",
+          amountCents: Math.round(Number(body.amount) * 100),
+          description: body.description,
+          categoryId: body.categoryId
+        };
+        fixedExpenses.push(fixedExpense);
+        await route.fulfill({ status: 201, json: fixedExpense });
+        return;
+      }
+
+      if (request.method() === "DELETE") {
+        const id = url.pathname.split("/").at(-1);
+        const index = fixedExpenses.findIndex((fixedExpense) => fixedExpense.id === id);
+        if (index >= 0) {
+          fixedExpenses.splice(index, 1);
+        }
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
+
+      await route.fulfill({ status: 200, json: fixedExpenses });
+    });
   });
 
   test("signs up, adds an expense, filters it, and sees reports update", async ({ page }) => {
@@ -250,7 +318,7 @@ test.describe("expense tracker critical flows", () => {
     await page.getByLabel("Amount").fill("30.00");
     await page.getByLabel("Description").fill("Concert");
     await page.getByTestId("expense-category").selectOption("entertainment");
-    await page.getByLabel("Date", { exact: true }).fill("2026-06-20");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
     await page.getByRole("button", { name: "Add expense" }).click();
 
     await expect(
@@ -276,6 +344,7 @@ test.describe("expense tracker critical flows", () => {
     ).toBeVisible();
     await expect(page.getByTestId("filter-category")).toHaveValue("");
 
+    await page.getByLabel("Period").selectOption("custom");
     await page.getByLabel("From date").fill("2026-06-10");
     await page.getByLabel("To date").fill("2026-06-30");
 
@@ -286,6 +355,36 @@ test.describe("expense tracker critical flows", () => {
       page.getByTestId("expense-description").filter({ hasText: "Concert" })
     ).toBeVisible();
     await expect(page.getByTestId("monthly-total")).toHaveText("$30.00");
+  });
+
+  test("filters by useful period presets and caps custom ranges at 90 days", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await page.getByLabel("Amount").fill("18.00");
+    await page.getByLabel("Description").fill("Recent lunch");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill(new Date().toISOString().slice(0, 10));
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByLabel("Amount").fill("45.00");
+    await page.getByLabel("Description").fill("Older subscription");
+    await page.getByTestId("expense-category").selectOption("entertainment");
+    await page.getByLabel("Date", { exact: true }).fill("2026-03-01");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByLabel("Period").selectOption("last7");
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Recent lunch" })).toBeVisible();
+    await expect(
+      page.getByTestId("expense-description").filter({ hasText: "Older subscription" })
+    ).toBeHidden();
+
+    await page.getByLabel("Period").selectOption("custom");
+    await page.getByLabel("From date").fill("2026-01-01");
+    await page.getByLabel("To date").fill("2026-06-30");
+    await expect(page.getByText("custom date range cannot exceed 90 days")).toBeVisible();
   });
 
   test("shows skeletons and pending states while async work is in flight", async ({ page }) => {
@@ -353,5 +452,55 @@ test.describe("expense tracker critical flows", () => {
     await page.getByRole("button", { name: "Export CSV" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("expenses.csv");
+  });
+
+  test("sets monthly goals and shows a mood indicator instead of repetitive totals", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await page.getByLabel("Amount").fill("80.00");
+    await page.getByLabel("Description").fill("June groceries");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await expect(page.getByRole("heading", { name: "Financial mood" })).toBeVisible();
+    await expect(page.getByTestId("financial-mood")).toContainText("Set a goal");
+
+    await page.getByLabel("Monthly expense limit").fill("100.00");
+    await page.getByLabel("Saving target").fill("30.00");
+    await page.getByRole("button", { name: "Save goals" }).click();
+
+    await expect(page.getByTestId("financial-mood")).toContainText("Watchful");
+    await expect(page.getByTestId("financial-mood")).toContainText("$10.00 short");
+    await expect(page.getByText("Visible spend")).toHaveCount(0);
+    await expect(page.getByText("All-time spend")).toHaveCount(0);
+  });
+
+  test("configures fixed monthly expenses and includes them in the mood indicator", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel("Password").fill("CorrectHorse123!");
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await page.getByRole("button", { name: "Open detailed report" }).click();
+    await page.getByLabel("Monthly expense limit").fill("2000.00");
+    await page.getByLabel("Saving target").fill("500.00");
+    await page.getByRole("button", { name: "Save goals" }).click();
+
+    await page.getByLabel("Fixed amount").fill("1200.00");
+    await page.getByLabel("Fixed description").fill("Rent");
+    await page.getByLabel("Fixed category").selectOption("food");
+    await page.getByRole("button", { name: "Add fixed expense" }).click();
+
+    await expect(page.getByTestId("fixed-expense-list")).toContainText("Rent");
+    await expect(page.getByTestId("financial-mood")).toContainText("Confident");
+    await expect(page.getByTestId("financial-mood")).toContainText("$1,200.00");
+
+    await page.getByRole("button", { name: "Delete fixed Rent" }).click();
+    await expect(page.getByTestId("fixed-expense-list")).not.toContainText("Rent");
   });
 });

@@ -340,7 +340,7 @@ p {
 }
 
 .wide {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .wide-report {
@@ -411,6 +411,134 @@ p {
   font-size: 1.55rem;
 }
 
+.goal-report {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.35fr) minmax(260px, 0.85fr);
+  gap: 14px;
+}
+
+.mood-card,
+.goal-form,
+.goal-insights {
+  border: 1px solid rgb(190 245 208 / 13%);
+  border-radius: 8px;
+  background: rgb(3 7 5 / 50%);
+}
+
+.mood-card {
+  display: grid;
+  gap: 16px;
+  min-height: 280px;
+  padding: 18px;
+}
+
+.mood-card > strong {
+  color: #6effa8;
+  font-size: clamp(2.2rem, 5vw, 4.4rem);
+  line-height: 0.92;
+}
+
+.mood-card[data-status="watchful"] > strong {
+  color: #f7c46c;
+}
+
+.mood-card[data-status="stressed"] > strong {
+  color: #ff8c8c;
+}
+
+.mood-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mood-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgb(110 255 168 / 28%);
+  border-radius: 8px;
+  background: rgb(110 255 168 / 10%);
+  color: #6effa8;
+}
+
+.mood-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mood-track {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(190 245 208 / 14%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+}
+
+.mood-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6effa8, #f7c46c);
+}
+
+.mood-card[data-status="stressed"] .mood-track span {
+  background: linear-gradient(90deg, #ff6e6e, #f7c46c);
+}
+
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mood-grid span,
+.goal-insights div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgb(190 245 208 / 10%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 4%);
+  padding: 12px;
+}
+
+.mood-grid small,
+.goal-insights span {
+  color: #87a894;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mood-grid strong,
+.goal-insights strong {
+  color: #f8fff9;
+  overflow-wrap: anywhere;
+}
+
+.goal-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.goal-insights {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.goal-insights svg {
+  width: 20px;
+  height: 20px;
+  color: #6effa8;
+}
+
 .empty-state {
   display: grid;
   gap: 12px;
@@ -434,7 +562,8 @@ p {
 }
 
 .trend-list,
-.budget-list {
+.budget-list,
+.fixed-expense-list {
   display: grid;
   gap: 14px;
   margin: 0;
@@ -443,22 +572,42 @@ p {
 }
 
 .trend-list li,
-.budget-list li {
+.budget-list li,
+.fixed-expense-list li {
   display: grid;
   gap: 8px;
 }
 
 .trend-list div:first-child,
-.budget-list div:first-child {
+.budget-list div:first-child,
+.fixed-expense-list li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
 .trend-list span,
 .budget-list span,
-.budget-list small {
+.budget-list small,
+.fixed-expense-list span,
+.fixed-expense-list small {
   color: #b6c8bc;
+}
+
+.fixed-expense-list li {
+  border: 1px solid rgb(190 245 208 / 13%);
+  border-radius: 8px;
+  background: rgb(3 7 5 / 50%);
+  padding: 12px;
+}
+
+.fixed-expense-list strong {
+  color: #f8fff9;
+}
+
+.fixed-expense-list small {
+  display: block;
 }
 
 .budget-list li[data-status="over"] .report-track span {
@@ -561,12 +710,17 @@ p {
 
   .layout-grid,
   .report-grid,
+  .goal-report,
   .toolbar {
     grid-template-columns: 1fr;
   }
 
   .wide {
     grid-column: auto;
+  }
+
+  .goal-insights {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -582,6 +736,7 @@ p {
 
   .hero-ledger,
   .metric-strip,
+  .mood-grid,
   .summary-grid {
     grid-template-columns: 1fr;
   }

@@ -4,24 +4,36 @@ import {
   BarChart3,
   Download,
   Edit3,
+  Gauge,
   LoaderCircle,
   LogIn,
+  PiggyBank,
   Plus,
   Save,
   SearchX,
+  Target,
   Trash2,
   UserPlus
 } from "lucide-react";
 import {
   buildExpenseCsv,
+  getDateRangeForPreset,
   filterExpenses,
+  getFinancialMood,
+  getMonthlyGoalSpend,
   getBudgetSummaries,
   getCategoryBreakdown,
   getMonthlyTotal,
   getMonthlyTrends,
+  normalizeFinancialGoalInput,
+  normalizeCustomDateRange,
+  normalizeFixedExpenseInput,
   normalizeBudgetInput,
   type Budget,
-  type Expense
+  type DateRangePreset,
+  type Expense,
+  type FinancialGoal,
+  type FixedExpense
 } from "@expense-tracker/core";
 import { buildReportViewModel } from "./features/expenses/reportViewModel";
 import "./styles.css";
@@ -38,6 +50,8 @@ type User = {
 };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const todayDate = new Date().toISOString().slice(0, 10);
+const defaultDateRange = getDateRangeForPreset("currentMonth", todayDate);
 
 const authHeaders = (token: string) => ({
   "content-type": "application/json",
@@ -74,10 +88,13 @@ export const App = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [goal, setGoal] = useState<FinancialGoal | null>(null);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [activeView, setActiveView] = useState<"dashboard" | "report">("dashboard");
+  const [periodPreset, setPeriodPreset] = useState<DateRangePreset | "custom">("currentMonth");
   const [filterCategory, setFilterCategory] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(defaultDateRange.from);
+  const [toDate, setToDate] = useState(defaultDateRange.to);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [authForm, setAuthForm] = useState({
     email: "",
@@ -94,14 +111,26 @@ export const App = () => {
     categoryId: "food",
     amount: ""
   });
+  const [goalForm, setGoalForm] = useState({
+    expenseLimit: "",
+    savingsTarget: ""
+  });
+  const [fixedExpenseForm, setFixedExpenseForm] = useState({
+    amount: "",
+    description: "",
+    categoryId: "food"
+  });
   const [authLoading, setAuthLoading] = useState<"login" | "signup" | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [expenseSaving, setExpenseSaving] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
   const [budgetSaving, setBudgetSaving] = useState(false);
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [fixedExpenseSaving, setFixedExpenseSaving] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [deletingFixedExpenseId, setDeletingFixedExpenseId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const hasActiveFilters = Boolean(filterCategory || fromDate || toDate);
+  const hasActiveFilters = Boolean(filterCategory || periodPreset !== "currentMonth");
   const canSubmitExpense =
     Boolean(expenseForm.amount.trim()) &&
     Boolean(expenseForm.description.trim()) &&
@@ -111,6 +140,17 @@ export const App = () => {
     !isLoadingDashboard;
   const canAddCategory = Boolean(newCategory.trim()) && !categorySaving && !isLoadingDashboard;
   const canSaveBudget = Boolean(budgetForm.categoryId) && Boolean(budgetForm.amount.trim()) && !budgetSaving;
+  const canSaveGoals =
+    Boolean(goalForm.expenseLimit.trim()) &&
+    Boolean(goalForm.savingsTarget.trim()) &&
+    !goalSaving &&
+    !isLoadingDashboard;
+  const canAddFixedExpense =
+    Boolean(fixedExpenseForm.amount.trim()) &&
+    Boolean(fixedExpenseForm.description.trim()) &&
+    Boolean(fixedExpenseForm.categoryId) &&
+    !fixedExpenseSaving &&
+    !isLoadingDashboard;
 
   useEffect(() => {
     if (!token) {
@@ -128,16 +168,40 @@ export const App = () => {
       ),
       fetch(`${apiBaseUrl}/budgets`, { headers: authHeaders(token) }).then((response) =>
         readJson<Budget[]>(response)
+      ),
+      fetch(`${apiBaseUrl}/goals`, { headers: authHeaders(token) }).then((response) =>
+        readJson<FinancialGoal | null>(response)
+      ),
+      fetch(`${apiBaseUrl}/fixed-expenses`, { headers: authHeaders(token) }).then((response) =>
+        readJson<FixedExpense[]>(response)
       )
-    ]).then(([nextCategories, nextExpenses, nextBudgets]: [Category[], Expense[], Budget[]]) => {
+    ]).then((
+      [nextCategories, nextExpenses, nextBudgets, nextGoal, nextFixedExpenses]: [
+        Category[],
+        Expense[],
+        Budget[],
+        FinancialGoal | null,
+        FixedExpense[]
+      ]
+    ) => {
       setCategories(nextCategories);
       setExpenses(nextExpenses);
       setBudgets(nextBudgets);
+      setGoal(nextGoal);
+      setFixedExpenses(nextFixedExpenses);
       setExpenseForm((current) => ({
         ...current,
         categoryId: nextCategories[0]?.id ?? ""
       }));
       setBudgetForm((current) => ({
+        ...current,
+        categoryId: nextCategories[0]?.id ?? ""
+      }));
+      setGoalForm({
+        expenseLimit: nextGoal ? String(nextGoal.monthlyExpenseLimitCents / 100) : "",
+        savingsTarget: nextGoal ? String(nextGoal.monthlySavingsTargetCents / 100) : ""
+      });
+      setFixedExpenseForm((current) => ({
         ...current,
         categoryId: nextCategories[0]?.id ?? ""
       }));
@@ -166,7 +230,6 @@ export const App = () => {
   );
 
   const monthlyTotalCents = getMonthlyTotal(visibleExpenses, "2026-06");
-  const allTimeTotalCents = expenses.reduce((total, expense) => total + expense.amountCents, 0);
   const breakdown = getCategoryBreakdown(visibleExpenses).map((item) => ({
     ...item,
     categoryName: categoryNameById[item.categoryId] ?? item.categoryId
@@ -182,6 +245,15 @@ export const App = () => {
   }));
   const trends = getMonthlyTrends(expenses);
   const maxTrendCents = Math.max(...trends.map((trend) => trend.totalCents), 1);
+  const goalSpend = getMonthlyGoalSpend({
+    expenses: visibleExpenses,
+    fixedExpenses,
+    month: "2026-06"
+  });
+  const financialMood = getFinancialMood({
+    monthlySpentCents: goalSpend.totalCents,
+    goal
+  });
   const report = buildReportViewModel({
     monthlyTotalCents,
     breakdown,
@@ -265,9 +337,40 @@ export const App = () => {
   };
 
   const clearFilters = () => {
+    setPeriodPreset("currentMonth");
     setFilterCategory("");
-    setFromDate("");
-    setToDate("");
+    setFromDate(defaultDateRange.from);
+    setToDate(defaultDateRange.to);
+  };
+
+  const applyPeriodPreset = (preset: DateRangePreset | "custom") => {
+    setPeriodPreset(preset);
+
+    if (preset === "custom") {
+      return;
+    }
+
+    const range = getDateRangeForPreset(preset, todayDate);
+    setFromDate(range.from);
+    setToDate(range.to);
+    setStatusMessage("");
+  };
+
+  const updateCustomRange = (nextRange: { from: string; to: string }) => {
+    setPeriodPreset("custom");
+    setFromDate(nextRange.from);
+    setToDate(nextRange.to);
+
+    if (!nextRange.from || !nextRange.to) {
+      return;
+    }
+
+    try {
+      normalizeCustomDateRange(nextRange);
+      setStatusMessage("");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Invalid date range.");
+    }
   };
 
   const addCategory = async () => {
@@ -323,6 +426,77 @@ export const App = () => {
       setStatusMessage("Unable to save budget.");
     } finally {
       setBudgetSaving(false);
+    }
+  };
+
+  const saveGoals = async () => {
+    setGoalSaving(true);
+    setStatusMessage("Saving goals");
+
+    try {
+      const normalized = normalizeFinancialGoalInput(goalForm);
+      const response = await fetch(`${apiBaseUrl}/goals`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify(goalForm)
+      });
+      const saved = await readJson<FinancialGoal>(response);
+
+      setGoal(saved);
+      setGoalForm({
+        expenseLimit: String(normalized.monthlyExpenseLimitCents / 100),
+        savingsTarget: String(normalized.monthlySavingsTargetCents / 100)
+      });
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to save goals.");
+    } finally {
+      setGoalSaving(false);
+    }
+  };
+
+  const addFixedExpense = async () => {
+    setFixedExpenseSaving(true);
+    setStatusMessage("Saving fixed expense");
+
+    try {
+      normalizeFixedExpenseInput(fixedExpenseForm);
+      const response = await fetch(`${apiBaseUrl}/fixed-expenses`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(fixedExpenseForm)
+      });
+      const saved = await readJson<FixedExpense>(response);
+
+      setFixedExpenses((current) => [...current, saved]);
+      setFixedExpenseForm((current) => ({
+        amount: "",
+        description: "",
+        categoryId: current.categoryId
+      }));
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to save fixed expense.");
+    } finally {
+      setFixedExpenseSaving(false);
+    }
+  };
+
+  const deleteFixedExpense = async (fixedExpense: FixedExpense) => {
+    setDeletingFixedExpenseId(fixedExpense.id);
+    setStatusMessage(`Deleting ${fixedExpense.description}`);
+
+    try {
+      await fetch(`${apiBaseUrl}/fixed-expenses/${fixedExpense.id}`, {
+        method: "DELETE",
+        headers: authHeaders(token)
+      });
+      setFixedExpenses((current) => current.filter((item) => item.id !== fixedExpense.id));
+      setStatusMessage("");
+    } catch {
+      setStatusMessage("Unable to delete fixed expense.");
+    } finally {
+      setDeletingFixedExpenseId(null);
     }
   };
 
@@ -615,11 +789,27 @@ export const App = () => {
               </select>
             </label>
             <label>
+              Period
+              <select
+                aria-label="Period"
+                value={periodPreset}
+                disabled={isLoadingDashboard}
+                onChange={(event) => applyPeriodPreset(event.target.value as DateRangePreset | "custom")}
+              >
+                <option value="currentMonth">Current month</option>
+                <option value="last7">Last 7 days</option>
+                <option value="last14">Last 14 days</option>
+                <option value="last30">Last 30 days</option>
+                <option value="lastMonth">Last month</option>
+                <option value="custom">Custom range</option>
+              </select>
+            </label>
+            <label>
               From date
               <input
                 value={fromDate}
-                disabled={isLoadingDashboard}
-                onChange={(event) => setFromDate(event.target.value)}
+                disabled={isLoadingDashboard || periodPreset !== "custom"}
+                onChange={(event) => updateCustomRange({ from: event.target.value, to: toDate })}
                 type="date"
               />
             </label>
@@ -627,8 +817,8 @@ export const App = () => {
               To date
               <input
                 value={toDate}
-                disabled={isLoadingDashboard}
-                onChange={(event) => setToDate(event.target.value)}
+                disabled={isLoadingDashboard || periodPreset !== "custom"}
+                onChange={(event) => updateCustomRange({ from: fromDate, to: event.target.value })}
                 type="date"
               />
             </label>
@@ -732,7 +922,7 @@ export const App = () => {
           <section className="panel wide-report">
             <div className="toolbar">
               <div className="panel-heading">
-                <span className="panel-kicker">Detailed ledger</span>
+                <span className="panel-kicker">Goal-based report</span>
                 <h2>Detailed report</h2>
               </div>
               <button type="button" aria-label="Export CSV" onClick={exportCsv}>
@@ -740,20 +930,193 @@ export const App = () => {
                 CSV
               </button>
             </div>
-            <div className="summary-grid">
-              <div>
-                <span>Visible spend</span>
-                <strong>{formatCents(monthlyTotalCents)}</strong>
-              </div>
-              <div>
-                <span>All-time spend</span>
-                <strong>{formatCents(allTimeTotalCents)}</strong>
-              </div>
-              <div>
-                <span>Budgeted categories</span>
-                <strong>{budgets.length}</strong>
-              </div>
+            <div className="goal-report">
+              <section
+                className="mood-card"
+                data-testid="financial-mood"
+                data-status={financialMood?.status ?? "unset"}
+                aria-labelledby="financial-mood-title"
+              >
+                <div className="mood-header">
+                  <span className="mood-icon" aria-hidden="true">
+                    <Gauge />
+                  </span>
+                  <div>
+                    <span className="panel-kicker">Mood indicator</span>
+                    <h2 id="financial-mood-title">Financial mood</h2>
+                  </div>
+                </div>
+                {financialMood ? (
+                  <>
+                    <strong>{financialMood.label}</strong>
+                    <p>{financialMood.message}</p>
+                    <div className="mood-track">
+                      <span style={{ width: `${Math.min(100, Math.max(4, financialMood.limitUsedPercentage))}%` }} />
+                    </div>
+                    <div className="mood-grid">
+                      <span>
+                        <small>Spent</small>
+                        <strong>{formatCents(financialMood.monthlySpentCents)}</strong>
+                      </span>
+                      <span>
+                        <small>Fixed monthly</small>
+                        <strong>{formatCents(goalSpend.fixedExpenseCents)}</strong>
+                      </span>
+                      <span>
+                        <small>Limit left</small>
+                        <strong>{formatCents(financialMood.remainingLimitCents)}</strong>
+                      </span>
+                      <span>
+                        <small>Savings buffer</small>
+                        <strong>
+                          {financialMood.savingsBufferCents >= 0
+                            ? formatCents(financialMood.savingsBufferCents)
+                            : `${formatCents(Math.abs(financialMood.savingsBufferCents))} short`}
+                        </strong>
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <strong>Set a goal</strong>
+                    <p>Add a monthly expense limit and saving target to generate a mood indicator.</p>
+                  </>
+                )}
+              </section>
+
+              <section className="goal-form" aria-labelledby="goals-title">
+                <div className="panel-heading">
+                  <span className="panel-kicker">Monthly goals</span>
+                  <h2 id="goals-title">Expense limit and savings</h2>
+                </div>
+                <label>
+                  Monthly expense limit
+                  <input
+                    value={goalForm.expenseLimit}
+                    disabled={goalSaving || isLoadingDashboard}
+                    onChange={(event) => setGoalForm({ ...goalForm, expenseLimit: event.target.value })}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label>
+                  Saving target
+                  <input
+                    value={goalForm.savingsTarget}
+                    disabled={goalSaving || isLoadingDashboard}
+                    onChange={(event) => setGoalForm({ ...goalForm, savingsTarget: event.target.value })}
+                    inputMode="decimal"
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label="Save goals"
+                  disabled={!canSaveGoals}
+                  onClick={() => void saveGoals()}
+                >
+                  {goalSaving ? <LoaderCircle aria-hidden="true" /> : <Target aria-hidden="true" />}
+                  {goalSaving ? "Saving" : "Save goals"}
+                </button>
+              </section>
+
+              <section className="goal-insights" aria-label="Goal insights">
+                <div>
+                  <PiggyBank aria-hidden="true" />
+                  <span>Saving target</span>
+                  <strong>{goal ? formatCents(goal.monthlySavingsTargetCents) : "Not set"}</strong>
+                </div>
+                <div>
+                  <Target aria-hidden="true" />
+                  <span>Expense limit</span>
+                  <strong>{goal ? formatCents(goal.monthlyExpenseLimitCents) : "Not set"}</strong>
+                </div>
+                <div>
+                  <BarChart3 aria-hidden="true" />
+                  <span>Budgeted categories</span>
+                  <strong>{budgets.length}</strong>
+                </div>
+              </section>
             </div>
+          </section>
+
+          <section className="panel" data-testid="fixed-expense-list">
+            <div className="panel-heading">
+              <span className="panel-kicker">Monthly commitments</span>
+              <h2>Fixed expenses</h2>
+            </div>
+            <label>
+              Fixed amount
+              <input
+                value={fixedExpenseForm.amount}
+                disabled={fixedExpenseSaving || isLoadingDashboard}
+                onChange={(event) =>
+                  setFixedExpenseForm({ ...fixedExpenseForm, amount: event.target.value })
+                }
+                inputMode="decimal"
+              />
+            </label>
+            <label>
+              Fixed description
+              <input
+                value={fixedExpenseForm.description}
+                disabled={fixedExpenseSaving || isLoadingDashboard}
+                onChange={(event) =>
+                  setFixedExpenseForm({ ...fixedExpenseForm, description: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Fixed category
+              <select
+                value={fixedExpenseForm.categoryId}
+                disabled={fixedExpenseSaving || isLoadingDashboard || categories.length === 0}
+                onChange={(event) =>
+                  setFixedExpenseForm({ ...fixedExpenseForm, categoryId: event.target.value })
+                }
+              >
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              aria-label="Add fixed expense"
+              disabled={!canAddFixedExpense}
+              onClick={() => void addFixedExpense()}
+            >
+              {fixedExpenseSaving ? <LoaderCircle aria-hidden="true" /> : <Plus aria-hidden="true" />}
+              {fixedExpenseSaving ? "Saving" : "Add fixed"}
+            </button>
+            {fixedExpenses.length === 0 ? (
+              <p>No fixed monthly expenses configured.</p>
+            ) : (
+              <ul className="fixed-expense-list">
+                {fixedExpenses.map((fixedExpense) => (
+                  <li key={fixedExpense.id}>
+                    <span>
+                      <strong>{fixedExpense.description}</strong>
+                      <small>{categoryNameById[fixedExpense.categoryId] ?? fixedExpense.categoryId}</small>
+                    </span>
+                    <span>{formatCents(fixedExpense.amountCents)}</span>
+                    <button
+                      type="button"
+                      aria-label={`Delete fixed ${fixedExpense.description}`}
+                      disabled={deletingFixedExpenseId !== null}
+                      onClick={() => void deleteFixedExpense(fixedExpense)}
+                    >
+                      {deletingFixedExpenseId === fixedExpense.id ? (
+                        <LoaderCircle aria-hidden="true" />
+                      ) : (
+                        <Trash2 aria-hidden="true" />
+                      )}
+                      {deletingFixedExpenseId === fixedExpense.id ? "Deleting" : "Delete"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="panel" data-testid="spending-trends">

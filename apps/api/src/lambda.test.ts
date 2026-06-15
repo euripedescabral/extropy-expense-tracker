@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { describe, expect, it, vi } from "vitest";
-import type { Budget, Category, Expense } from "@expense-tracker/core";
+import type { Budget, Category, Expense, FinancialGoal, FixedExpense } from "@expense-tracker/core";
 import { createAppHandler } from "./lambda";
 
 type UserRecord = {
@@ -35,6 +35,8 @@ const buildHandler = () => {
   const expenses: Expense[] = [];
   const categories: Category[] = [];
   const budgets: Budget[] = [];
+  const fixedExpenses: FixedExpense[] = [];
+  let goal: FinancialGoal | null = null;
 
   return createAppHandler({
     jwtSecret: "test-secret",
@@ -99,6 +101,33 @@ const buildHandler = () => {
 
         return budget;
       })
+    },
+    goalRepository: {
+      get: vi.fn(async () => goal),
+      upsert: vi.fn(async (nextGoal: FinancialGoal) => {
+        goal = nextGoal;
+
+        return nextGoal;
+      })
+    },
+    fixedExpenseRepository: {
+      list: vi.fn(async () => fixedExpenses),
+      create: vi.fn(async (input: Omit<FixedExpense, "id">) => {
+        const fixedExpense = {
+          id: "fixed_1",
+          ...input
+        };
+        fixedExpenses.push(fixedExpense);
+
+        return fixedExpense;
+      }),
+      delete: vi.fn(async (input: { id: string }) => {
+        const index = fixedExpenses.findIndex((fixedExpense) => fixedExpense.id === input.id);
+
+        if (index >= 0) {
+          fixedExpenses.splice(index, 1);
+        }
+      })
     }
   });
 };
@@ -150,6 +179,47 @@ describe("lambda app handler", () => {
     expect(bodyOf<Budget[]>(listBudgets)).toContainEqual(
       expect.objectContaining({ categoryId: "food", monthlyLimitCents: 20000 })
     );
+
+    const savedGoal = await handler(
+      event("PUT", "/goals", {
+        token: session.token,
+        body: { expenseLimit: "2000.00", savingsTarget: "500.00" }
+      })
+    );
+    expect(savedGoal.statusCode).toBe(200);
+    expect(bodyOf<FinancialGoal>(savedGoal)).toEqual({
+      userId: "user_1",
+      monthlyExpenseLimitCents: 200000,
+      monthlySavingsTargetCents: 50000
+    });
+
+    const loadedGoal = await handler(event("GET", "/goals", { token: session.token }));
+    expect(loadedGoal.statusCode).toBe(200);
+    expect(bodyOf<FinancialGoal>(loadedGoal)).toMatchObject({
+      monthlyExpenseLimitCents: 200000,
+      monthlySavingsTargetCents: 50000
+    });
+
+    const fixedExpense = await handler(
+      event("POST", "/fixed-expenses", {
+        token: session.token,
+        body: { amount: "1200.00", description: "Rent", categoryId: "food" }
+      })
+    );
+    expect(fixedExpense.statusCode).toBe(201);
+    expect(bodyOf<FixedExpense>(fixedExpense)).toMatchObject({
+      id: "fixed_1",
+      amountCents: 120000,
+      description: "Rent"
+    });
+
+    const listedFixedExpenses = await handler(event("GET", "/fixed-expenses", { token: session.token }));
+    expect(bodyOf<FixedExpense[]>(listedFixedExpenses)).toHaveLength(1);
+
+    const deletedFixedExpense = await handler(
+      event("DELETE", "/fixed-expenses/fixed_1", { token: session.token })
+    );
+    expect(deletedFixedExpense.statusCode).toBe(204);
 
     const createdExpense = await handler(
       event("POST", "/expenses", {

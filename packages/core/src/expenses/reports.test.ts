@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildExpenseCsv,
+  getDateRangeForPreset,
+  getFinancialMood,
+  getMonthlyGoalSpend,
   filterExpenses,
   getBudgetSummaries,
   getCategoryBreakdown,
   getMonthlyTotal,
   getMonthlyTrends,
+  normalizeCustomDateRange,
+  normalizeFinancialGoalInput,
+  normalizeFixedExpenseInput,
   normalizeBudgetInput,
   normalizeExpenseInput
 } from "./reports";
@@ -54,6 +60,40 @@ describe("expense reporting", () => {
     });
   });
 
+  it("normalizes fixed monthly expenses and counts them toward goal spend", () => {
+    expect(
+      normalizeFixedExpenseInput({
+        amount: "1200.00",
+        description: "Rent",
+        categoryId: "utilities"
+      })
+    ).toEqual({
+      amountCents: 120000,
+      description: "Rent",
+      categoryId: "utilities"
+    });
+
+    expect(
+      getMonthlyGoalSpend({
+        expenses,
+        fixedExpenses: [
+          {
+            id: "fixed_1",
+            userId: "user_1",
+            amountCents: 120000,
+            description: "Rent",
+            categoryId: "utilities"
+          }
+        ],
+        month: "2026-06"
+      })
+    ).toEqual({
+      variableExpenseCents: 5799,
+      fixedExpenseCents: 120000,
+      totalCents: 125799
+    });
+  });
+
   it("rejects empty descriptions, invalid dates, and non-positive amounts", () => {
     expect(() =>
       normalizeExpenseInput({
@@ -76,6 +116,35 @@ describe("expense reporting", () => {
     expect(expenses).toHaveLength(3);
   });
 
+  it("builds useful period preset ranges from a reference date", () => {
+    expect(getDateRangeForPreset("last7", "2026-06-15")).toEqual({
+      from: "2026-06-09",
+      to: "2026-06-15"
+    });
+    expect(getDateRangeForPreset("last14", "2026-06-15")).toEqual({
+      from: "2026-06-02",
+      to: "2026-06-15"
+    });
+    expect(getDateRangeForPreset("currentMonth", "2026-06-15")).toEqual({
+      from: "2026-06-01",
+      to: "2026-06-15"
+    });
+    expect(getDateRangeForPreset("lastMonth", "2026-06-15")).toEqual({
+      from: "2026-05-01",
+      to: "2026-05-31"
+    });
+  });
+
+  it("allows custom date ranges up to 90 days and rejects wider windows", () => {
+    expect(normalizeCustomDateRange({ from: "2026-04-02", to: "2026-06-30" })).toEqual({
+      from: "2026-04-02",
+      to: "2026-06-30"
+    });
+
+    expect(() => normalizeCustomDateRange({ from: "2026-03-01", to: "2026-06-30" })).toThrow(/90 days/i);
+    expect(() => normalizeCustomDateRange({ from: "2026-06-30", to: "2026-06-01" })).toThrow(/after/i);
+  });
+
   it("computes monthly totals in cents for a requested YYYY-MM month", () => {
     expect(getMonthlyTotal(expenses, "2026-06")).toBe(5799);
   });
@@ -95,6 +164,62 @@ describe("expense reporting", () => {
     });
 
     expect(() => normalizeBudgetInput({ categoryId: "", amount: "0" })).toThrow(/budget/i);
+  });
+
+  it("normalizes financial goal input for monthly expense and saving targets", () => {
+    expect(normalizeFinancialGoalInput({ expenseLimit: "2000.00", savingsTarget: "500.00" })).toEqual({
+      monthlyExpenseLimitCents: 200000,
+      monthlySavingsTargetCents: 50000
+    });
+
+    expect(() => normalizeFinancialGoalInput({ expenseLimit: "0", savingsTarget: "500.00" })).toThrow(/goal/i);
+  });
+
+  it("generates a confident mood when spending leaves room for the saving target", () => {
+    expect(
+      getFinancialMood({
+        monthlySpentCents: 5799,
+        goal: {
+          userId: "user_1",
+          monthlyExpenseLimitCents: 200000,
+          monthlySavingsTargetCents: 50000
+        }
+      })
+    ).toEqual({
+      status: "confident",
+      label: "Confident",
+      message: "Spending is below the limit and the saving target still fits.",
+      monthlySpentCents: 5799,
+      monthlyExpenseLimitCents: 200000,
+      monthlySavingsTargetCents: 50000,
+      remainingLimitCents: 194201,
+      savingsBufferCents: 144201,
+      limitUsedPercentage: 2.9
+    });
+  });
+
+  it("generates watchful and stressed moods when goals are at risk", () => {
+    expect(
+      getFinancialMood({
+        monthlySpentCents: 180000,
+        goal: {
+          userId: "user_1",
+          monthlyExpenseLimitCents: 200000,
+          monthlySavingsTargetCents: 50000
+        }
+      })?.status
+    ).toBe("watchful");
+
+    expect(
+      getFinancialMood({
+        monthlySpentCents: 225000,
+        goal: {
+          userId: "user_1",
+          monthlyExpenseLimitCents: 200000,
+          monthlySavingsTargetCents: 50000
+        }
+      })?.status
+    ).toBe("stressed");
   });
 
   it("summarizes category budgets against monthly spending", () => {

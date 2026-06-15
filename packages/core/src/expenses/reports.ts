@@ -22,6 +22,13 @@ export type ExpenseFilters = {
   categoryId?: string;
 };
 
+export type DateRangePreset = "last7" | "last14" | "last30" | "currentMonth" | "lastMonth";
+
+export type DateRange = {
+  from: string;
+  to: string;
+};
+
 export type Budget = {
   userId: string;
   categoryId: string;
@@ -33,6 +40,31 @@ export type BudgetInput = {
   amount: string;
 };
 
+export type FixedExpense = {
+  id: string;
+  userId: string;
+  amountCents: number;
+  description: string;
+  categoryId: string;
+};
+
+export type FixedExpenseInput = {
+  amount: string;
+  description: string;
+  categoryId: string;
+};
+
+export type FinancialGoal = {
+  userId: string;
+  monthlyExpenseLimitCents: number;
+  monthlySavingsTargetCents: number;
+};
+
+export type FinancialGoalInput = {
+  expenseLimit: string;
+  savingsTarget: string;
+};
+
 export type BudgetSummary = Budget & {
   spentCents: number;
   remainingCents: number;
@@ -40,8 +72,26 @@ export type BudgetSummary = Budget & {
   status: "under" | "near" | "over";
 };
 
+export type FinancialMood = {
+  status: "confident" | "watchful" | "stressed";
+  label: "Confident" | "Watchful" | "Stressed";
+  message: string;
+  monthlySpentCents: number;
+  monthlyExpenseLimitCents: number;
+  monthlySavingsTargetCents: number;
+  remainingLimitCents: number;
+  savingsBufferCents: number;
+  limitUsedPercentage: number;
+};
+
 export type MonthlyTrend = {
   month: string;
+  totalCents: number;
+};
+
+export type MonthlyGoalSpend = {
+  variableExpenseCents: number;
+  fixedExpenseCents: number;
   totalCents: number;
 };
 
@@ -69,6 +119,17 @@ export const budgetInputSchema = z.object({
   amount: z.string().min(1, "amount is required")
 });
 
+export const fixedExpenseInputSchema = z.object({
+  amount: z.string().min(1, "amount is required"),
+  description: z.string().trim().min(1, "description is required").max(120),
+  categoryId: z.string().trim().min(1, "categoryId is required")
+});
+
+export const financialGoalInputSchema = z.object({
+  expenseLimit: z.string().min(1, "expenseLimit is required"),
+  savingsTarget: z.string().min(1, "savingsTarget is required")
+});
+
 const parseAmountCents = (amount: string) => {
   if (!/^\d+(\.\d{1,2})?$/.test(amount)) {
     throw new Error("amount must be a positive decimal with up to two cents");
@@ -85,6 +146,31 @@ const parseAmountCents = (amount: string) => {
 };
 
 const roundPercentage = (value: number) => Math.round(value * 100) / 100;
+
+const parseDateOnly = (date: string) => {
+  const parsed = dateSchema.safeParse(date);
+
+  if (!parsed.success) {
+    throw new Error("date range must use valid YYYY-MM-DD dates");
+  }
+
+  return new Date(`${date}T00:00:00.000Z`);
+};
+
+const formatDateOnly = (date: Date) => date.toISOString().slice(0, 10);
+
+const addUtcDays = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+
+  return nextDate;
+};
+
+const startOfUtcMonth = (date: Date) =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+
+const endOfPreviousUtcMonth = (date: Date) =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 0));
 
 export const normalizeExpenseInput = (input: ExpenseInput) => {
   const parsed = expenseInputSchema.safeParse(input);
@@ -113,6 +199,106 @@ export const normalizeBudgetInput = (input: BudgetInput) => {
     categoryId: parsed.data.categoryId.trim(),
     monthlyLimitCents: parseAmountCents(parsed.data.amount)
   };
+};
+
+export const normalizeFixedExpenseInput = (input: FixedExpenseInput) => {
+  const parsed = fixedExpenseInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    throw new Error("Invalid fixed expense");
+  }
+
+  return {
+    amountCents: parseAmountCents(parsed.data.amount),
+    description: parsed.data.description.trim(),
+    categoryId: parsed.data.categoryId.trim()
+  };
+};
+
+export const getDateRangeForPreset = (
+  preset: DateRangePreset,
+  referenceDate: string
+): DateRange => {
+  const today = parseDateOnly(referenceDate);
+
+  if (preset === "last7") {
+    return {
+      from: formatDateOnly(addUtcDays(today, -6)),
+      to: formatDateOnly(today)
+    };
+  }
+
+  if (preset === "last14") {
+    return {
+      from: formatDateOnly(addUtcDays(today, -13)),
+      to: formatDateOnly(today)
+    };
+  }
+
+  if (preset === "last30") {
+    return {
+      from: formatDateOnly(addUtcDays(today, -29)),
+      to: formatDateOnly(today)
+    };
+  }
+
+  if (preset === "currentMonth") {
+    return {
+      from: formatDateOnly(startOfUtcMonth(today)),
+      to: formatDateOnly(today)
+    };
+  }
+
+  const lastMonthEnd = endOfPreviousUtcMonth(today);
+
+  return {
+    from: formatDateOnly(startOfUtcMonth(lastMonthEnd)),
+    to: formatDateOnly(lastMonthEnd)
+  };
+};
+
+export const normalizeCustomDateRange = (range: DateRange): DateRange => {
+  const from = parseDateOnly(range.from);
+  const to = parseDateOnly(range.to);
+
+  if (from > to) {
+    throw new Error("from date cannot be after to date");
+  }
+
+  const days = Math.floor((to.getTime() - from.getTime()) / 86_400_000) + 1;
+
+  if (days > 90) {
+    throw new Error("custom date range cannot exceed 90 days");
+  }
+
+  return {
+    from: formatDateOnly(from),
+    to: formatDateOnly(to)
+  };
+};
+
+export const normalizeFinancialGoalInput = (input: FinancialGoalInput) => {
+  const parsed = financialGoalInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    throw new Error("Invalid financial goal");
+  }
+
+  try {
+    const monthlyExpenseLimitCents = parseAmountCents(parsed.data.expenseLimit);
+    const monthlySavingsTargetCents = parseAmountCents(parsed.data.savingsTarget);
+
+    if (monthlySavingsTargetCents >= monthlyExpenseLimitCents) {
+      throw new Error("saving target must be lower than expense limit");
+    }
+
+    return {
+      monthlyExpenseLimitCents,
+      monthlySavingsTargetCents
+    };
+  } catch {
+    throw new Error("Invalid financial goal");
+  }
 };
 
 export const filterExpenses = (expenses: readonly Expense[], filters: ExpenseFilters) =>
@@ -179,6 +365,79 @@ export const getBudgetSummaries = (input: {
       };
     })
     .sort((left, right) => right.percentageUsed - left.percentageUsed);
+};
+
+export const getFinancialMood = (input: {
+  monthlySpentCents: number;
+  goal: FinancialGoal | null;
+}): FinancialMood | null => {
+  if (!input.goal) {
+    return null;
+  }
+
+  const remainingLimitCents = input.goal.monthlyExpenseLimitCents - input.monthlySpentCents;
+  const savingsBufferCents = remainingLimitCents - input.goal.monthlySavingsTargetCents;
+  const limitUsedPercentage = roundPercentage(
+    (input.monthlySpentCents / input.goal.monthlyExpenseLimitCents) * 100
+  );
+
+  if (remainingLimitCents < 0) {
+    return {
+      status: "stressed",
+      label: "Stressed",
+      message: "Spending is above the monthly expense limit.",
+      monthlySpentCents: input.monthlySpentCents,
+      monthlyExpenseLimitCents: input.goal.monthlyExpenseLimitCents,
+      monthlySavingsTargetCents: input.goal.monthlySavingsTargetCents,
+      remainingLimitCents,
+      savingsBufferCents,
+      limitUsedPercentage
+    };
+  }
+
+  if (savingsBufferCents < 0) {
+    return {
+      status: "watchful",
+      label: "Watchful",
+      message: "Spending is inside the limit, but the saving target needs attention.",
+      monthlySpentCents: input.monthlySpentCents,
+      monthlyExpenseLimitCents: input.goal.monthlyExpenseLimitCents,
+      monthlySavingsTargetCents: input.goal.monthlySavingsTargetCents,
+      remainingLimitCents,
+      savingsBufferCents,
+      limitUsedPercentage
+    };
+  }
+
+  return {
+    status: "confident",
+    label: "Confident",
+    message: "Spending is below the limit and the saving target still fits.",
+    monthlySpentCents: input.monthlySpentCents,
+    monthlyExpenseLimitCents: input.goal.monthlyExpenseLimitCents,
+    monthlySavingsTargetCents: input.goal.monthlySavingsTargetCents,
+    remainingLimitCents,
+    savingsBufferCents,
+    limitUsedPercentage
+  };
+};
+
+export const getMonthlyGoalSpend = (input: {
+  expenses: readonly Expense[];
+  fixedExpenses: readonly FixedExpense[];
+  month: string;
+}): MonthlyGoalSpend => {
+  const variableExpenseCents = getMonthlyTotal(input.expenses, input.month);
+  const fixedExpenseCents = input.fixedExpenses.reduce(
+    (total, fixedExpense) => total + fixedExpense.amountCents,
+    0
+  );
+
+  return {
+    variableExpenseCents,
+    fixedExpenseCents,
+    totalCents: variableExpenseCents + fixedExpenseCents
+  };
 };
 
 export const getMonthlyTrends = (expenses: readonly Expense[]): MonthlyTrend[] => {

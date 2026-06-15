@@ -1,5 +1,10 @@
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
-import { addCustomCategory, normalizeBudgetInput } from "@expense-tracker/core";
+import {
+  addCustomCategory,
+  normalizeBudgetInput,
+  normalizeFinancialGoalInput,
+  normalizeFixedExpenseInput
+} from "@expense-tracker/core";
 import { createAuthService } from "./auth/authService";
 import { verifyAuthToken, type AuthClaims } from "./auth/token";
 import { MissingEnvError, requireEnv } from "./config/env";
@@ -16,6 +21,8 @@ type AppDependencies = {
   expenseRepository: Repositories["expenses"];
   categoryRepository: Repositories["categories"];
   budgetRepository: Repositories["budgets"];
+  goalRepository: Repositories["goals"];
+  fixedExpenseRepository: Repositories["fixedExpenses"];
 };
 
 type AuthenticatedHandler = (claims: AuthClaims) => Promise<HttpResponse>;
@@ -117,7 +124,76 @@ export const createAppHandler = (dependencies: AppDependencies) => {
         );
       }
 
+      if (method === "GET" && path === "/goals") {
+        return withAuth(event, async (claims) =>
+          json(200, await dependencies.goalRepository.get(claims.userId))
+        );
+      }
+
+      if (method === "GET" && path === "/fixed-expenses") {
+        return withAuth(event, async (claims) =>
+          json(200, await dependencies.fixedExpenseRepository.list(claims.userId))
+        );
+      }
+
+      if (method === "POST" && path === "/fixed-expenses") {
+        return withAuth(event, async (claims) => {
+          const body = parseJsonBody(event.body) as {
+            amount?: string;
+            description?: string;
+            categoryId?: string;
+          };
+          const normalized = normalizeFixedExpenseInput({
+            amount: body.amount ?? "",
+            description: body.description ?? "",
+            categoryId: body.categoryId ?? ""
+          });
+
+          return json(
+            201,
+            await dependencies.fixedExpenseRepository.create({
+              userId: claims.userId,
+              ...normalized
+            })
+          );
+        });
+      }
+
+      if (method === "PUT" && path === "/goals") {
+        return withAuth(event, async (claims) => {
+          const body = parseJsonBody(event.body) as {
+            expenseLimit?: string;
+            savingsTarget?: string;
+          };
+          const normalized = normalizeFinancialGoalInput({
+            expenseLimit: body.expenseLimit ?? "",
+            savingsTarget: body.savingsTarget ?? ""
+          });
+
+          return json(
+            200,
+            await dependencies.goalRepository.upsert({
+              userId: claims.userId,
+              ...normalized
+            })
+          );
+        });
+      }
+
       const budgetCategoryId = path.match(/^\/budgets\/([^/]+)$/)?.[1];
+
+      const fixedExpenseId = path.match(/^\/fixed-expenses\/([^/]+)$/)?.[1];
+
+      if (fixedExpenseId && method === "DELETE") {
+        return withAuth(event, async (claims) => {
+          await dependencies.fixedExpenseRepository.delete({
+            userId: claims.userId,
+            id: fixedExpenseId
+          });
+
+          return empty(204);
+        });
+      }
 
       if (budgetCategoryId && method === "PUT") {
         return withAuth(event, async (claims) => {
@@ -185,7 +261,9 @@ const getDeployedHandler = () => {
       userRepository: repositories.users,
       expenseRepository: repositories.expenses,
       categoryRepository: repositories.categories,
-      budgetRepository: repositories.budgets
+      budgetRepository: repositories.budgets,
+      goalRepository: repositories.goals,
+      fixedExpenseRepository: repositories.fixedExpenses
     });
   }
 

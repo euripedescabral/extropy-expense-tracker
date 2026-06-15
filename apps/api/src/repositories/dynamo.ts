@@ -7,7 +7,14 @@ import {
   PutCommand,
   QueryCommand
 } from "@aws-sdk/lib-dynamodb";
-import { seedDefaultCategories, type Budget, type Category, type Expense } from "@expense-tracker/core";
+import {
+  seedDefaultCategories,
+  type Budget,
+  type Category,
+  type Expense,
+  type FinancialGoal,
+  type FixedExpense
+} from "@expense-tracker/core";
 
 type UserRecord = {
   id: string;
@@ -26,6 +33,8 @@ const accountPk = (userId: string) => `USER#${userId}`;
 const expenseSk = (id: string) => `EXPENSE#${id}`;
 const categorySk = (id: string) => `CATEGORY#${id}`;
 const budgetSk = (categoryId: string) => `BUDGET#${categoryId}`;
+const fixedExpenseSk = (id: string) => `FIXED#${id}`;
+const goalSk = "GOAL#MONTHLY";
 
 export const toPublicExpense = (item: Expense): Expense => ({
   id: item.id,
@@ -47,6 +56,20 @@ export const toPublicBudget = (item: Budget): Budget => ({
   userId: item.userId,
   categoryId: item.categoryId,
   monthlyLimitCents: item.monthlyLimitCents
+});
+
+export const toPublicGoal = (item: FinancialGoal): FinancialGoal => ({
+  userId: item.userId,
+  monthlyExpenseLimitCents: item.monthlyExpenseLimitCents,
+  monthlySavingsTargetCents: item.monthlySavingsTargetCents
+});
+
+export const toPublicFixedExpense = (item: FixedExpense): FixedExpense => ({
+  id: item.id,
+  userId: item.userId,
+  amountCents: item.amountCents,
+  description: item.description,
+  categoryId: item.categoryId
 });
 
 export const createDynamoRepositories = (input: DynamoRepositoriesInput) => {
@@ -184,6 +207,59 @@ export const createDynamoRepositories = (input: DynamoRepositoriesInput) => {
         });
 
         return budget;
+      }
+    },
+    goals: {
+      get: async (userId: string) => {
+        const goal = await getItem<FinancialGoal>({
+          pk: accountPk(userId),
+          sk: goalSk
+        });
+
+        return goal ? toPublicGoal(goal) : null;
+      },
+      upsert: async (goal: FinancialGoal) => {
+        await putItem({
+          pk: accountPk(goal.userId),
+          sk: goalSk,
+          ...goal
+        });
+
+        return goal;
+      }
+    },
+    fixedExpenses: {
+      list: async (userId: string) =>
+        queryUserItems<FixedExpense>(userId, "FIXED#").then((fixedExpenses) =>
+          fixedExpenses
+            .map(toPublicFixedExpense)
+            .sort((left, right) => left.description.localeCompare(right.description))
+        ),
+      create: async (fixedExpenseInput: Omit<FixedExpense, "id">) => {
+        const id: string = randomUUID();
+        const fixedExpense = {
+          id,
+          ...fixedExpenseInput
+        };
+
+        await putItem({
+          pk: accountPk(fixedExpense.userId),
+          sk: fixedExpenseSk(fixedExpense.id),
+          ...fixedExpense
+        }, "attribute_not_exists(pk)");
+
+        return fixedExpense;
+      },
+      delete: async (deleteInput: { userId: string; id: string }) => {
+        await documentClient.send(
+          new DeleteCommand({
+            TableName: input.tableName,
+            Key: {
+              pk: accountPk(deleteInput.userId),
+              sk: fixedExpenseSk(deleteInput.id)
+            }
+          })
+        );
       }
     }
   };

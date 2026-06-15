@@ -5,3 +5,5 @@
 - 2026-06-14: Expanded flow audit to include login, edit expense, and date-range filtering; E2E now covers 6 desktop/mobile Playwright cases.
 - 2026-06-14: Added repo AWS operations runbook for console login, CLI profile setup, CDK bootstrap/deploy, frontend upload, and credential safety.
 - 2026-06-14: Added reporting enhancement plan for detailed reports, category budgets, CSV export, trend visualization, demo assets, and live smoke coverage.
+- 2026-06-14: Expanded reporting plan with period presets, custom 90-day range validation, monthly expense/savings goals, and financial mood indicator.
+- 2026-06-14: Expanded reporting plan with configurable fixed monthly expenses that count toward every monthly goal and are covered by unit/API/E2E/live smoke tests.

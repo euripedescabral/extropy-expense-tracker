@@ -62,6 +62,38 @@ const budgets = await requestJson("/budgets", { headers: authHeaders });
 assert(Array.isArray(budgets.body), "budget list should return an array");
 assert(budgets.body.some((item) => item.categoryId === categoryId), "budget list should include saved budget");
 
+const goal = await requestJson("/goals", {
+  method: "PUT",
+  headers: authHeaders,
+  body: JSON.stringify({ expenseLimit: "2000.00", savingsTarget: "500.00" })
+});
+assert(goal.status === 200, "goal upsert should return 200");
+assert(goal.body.monthlyExpenseLimitCents === 200000, "goal should save expense limit");
+assert(goal.body.monthlySavingsTargetCents === 50000, "goal should save savings target");
+
+const loadedGoal = await requestJson("/goals", { headers: authHeaders });
+assert(loadedGoal.status === 200, "goal get should return 200");
+assert(loadedGoal.body.monthlySavingsTargetCents === 50000, "goal get should return saved target");
+
+const fixedExpense = await requestJson("/fixed-expenses", {
+  method: "POST",
+  headers: authHeaders,
+  body: JSON.stringify({
+    amount: "1200.00",
+    description: "Live smoke rent",
+    categoryId
+  })
+});
+assert(fixedExpense.status === 201, "fixed expense create should return 201");
+assert(fixedExpense.body.amountCents === 120000, "fixed expense should save amount");
+
+const fixedExpenses = await requestJson("/fixed-expenses", { headers: authHeaders });
+assert(Array.isArray(fixedExpenses.body), "fixed expense list should return an array");
+assert(
+  fixedExpenses.body.some((item) => item.id === fixedExpense.body.id),
+  "fixed expense list should include created item"
+);
+
 const created = await requestJson("/expenses", {
   method: "POST",
   headers: authHeaders,
@@ -100,6 +132,12 @@ const deleted = await fetch(`${apiUrl}/expenses/${created.body.id}`, {
 });
 assert(deleted.status === 204, "expense delete should return 204");
 
+const deletedFixedExpense = await fetch(`${apiUrl}/fixed-expenses/${fixedExpense.body.id}`, {
+  method: "DELETE",
+  headers: authHeaders
+});
+assert(deletedFixedExpense.status === 204, "fixed expense delete should return 204");
+
 console.log("LIVE_SMOKE_PASSED", {
   apiUrl,
   email,
@@ -109,9 +147,14 @@ console.log("LIVE_SMOKE_PASSED", {
     "categories",
     "upsert budget",
     "list budgets",
+    "upsert goals",
+    "get goals",
+    "create fixed expense",
+    "list fixed expenses",
     "create expense",
     "update expense",
     "list expenses",
-    "delete expense"
+    "delete expense",
+    "delete fixed expense"
   ]
 });
