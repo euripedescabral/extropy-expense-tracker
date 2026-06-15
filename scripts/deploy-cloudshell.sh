@@ -62,10 +62,26 @@ process.exit(1);
 ' "$key" "$OUTPUTS_FILE" "$STACK_NAME" 2>/dev/null || awk -v key="${STACK_NAME}.${key}" '$1 == key && $2 == "=" { print $3 }' "$DEPLOY_LOG" | tail -1
 }
 
-API_URL="$(read_output ApiUrl)"
-WEB_BUCKET="$(read_output WebBucketName)"
-DIST_ID="$(read_output DistributionId)"
-WEB_URL="$(read_output WebUrl)"
+read_stack_output() {
+  local key="$1"
+  local value
+
+  value="$(read_output "$key")"
+  if [[ -n "$value" ]]; then
+    echo "$value"
+    return
+  fi
+
+  aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --query "Stacks[0].Outputs[?OutputKey=='${key}'].OutputValue | [0]" \
+    --output text
+}
+
+API_URL="$(read_stack_output ApiUrl)"
+WEB_BUCKET="$(read_stack_output WebBucketName)"
+DIST_ID="$(read_stack_output DistributionId)"
+WEB_URL="$(read_stack_output WebUrl)"
 
 if [[ -z "$API_URL" || -z "$WEB_BUCKET" || -z "$DIST_ID" || -z "$WEB_URL" ]]; then
   echo "Unable to resolve CDK outputs. Check $OUTPUTS_FILE or $DEPLOY_LOG." >&2
