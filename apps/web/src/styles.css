@@ -422,14 +422,20 @@ p {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(132px, 0.5fr)) auto;
+  width: 100%;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1.15fr) repeat(4, minmax(0, 1fr)) auto;
   gap: 12px;
   align-items: end;
+  min-width: 0;
 }
 
 .expense-list {
   display: grid;
   gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -437,7 +443,8 @@ p {
 
 .expense-list li {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(92px, auto) minmax(84px, auto) minmax(104px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(88px, auto) minmax(72px, auto) minmax(92px, auto);
+  min-width: 0;
   align-items: center;
   gap: 10px;
   border: 1px solid rgb(190 245 208 / 13%);
@@ -449,6 +456,15 @@ p {
 .expense-list small {
   display: block;
   color: #87a894;
+}
+
+.expense-list li > span:first-child {
+  min-width: 0;
+}
+
+.expense-list li > span:first-child strong,
+.expense-list li > span:first-child small {
+  overflow-wrap: anywhere;
 }
 
 .expense-amount {

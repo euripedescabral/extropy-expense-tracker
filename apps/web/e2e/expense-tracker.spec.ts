@@ -425,6 +425,13 @@ test.describe("expense tracker critical flows", () => {
     await page.getByLabel("Password").fill("CorrectHorse123!");
     await page.getByRole("button", { name: "Log in" }).click();
 
+    await page.getByLabel("Amount").fill("12.00");
+    await page.getByLabel("Description").fill("Layout row");
+    await page.getByTestId("expense-category").selectOption("food");
+    await page.getByLabel("Date", { exact: true }).fill("2026-06-14");
+    await page.getByRole("button", { name: "Add expense" }).click();
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Layout row" })).toBeVisible();
+
     await expect(page.getByTestId("dashboard-layout")).toBeVisible();
     await expect(page.getByTestId("dashboard-actions")).toBeVisible();
     await expect(page.getByTestId("dashboard-content")).toBeVisible();
@@ -445,6 +452,31 @@ test.describe("expense tracker critical flows", () => {
     expect(desktopRegions.content).toBeTruthy();
     expect(desktopRegions.actions!.right).toBeLessThan(desktopRegions.content!.left);
     expect(desktopRegions.documentWidth).toBeLessThanOrEqual(desktopRegions.viewportWidth);
+    await expect(page.locator(".toolbar")).toBeInViewport();
+    await expect(page.locator(".expense-list")).toBeInViewport();
+    const desktopContainedChildren = await page.evaluate(() => {
+      const selectors = [".toolbar", ".expense-list", ".spend-preview-panel"];
+
+      return selectors.map((selector) => {
+        const child = document.querySelector(selector)?.getBoundingClientRect();
+        const parent = document.querySelector(selector)?.parentElement?.getBoundingClientRect();
+
+        return {
+          selector,
+          overflowRight: child && parent ? Math.ceil(child.right - parent.right) : 0
+        };
+      });
+    });
+
+    expect(desktopContainedChildren).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ selector: ".toolbar", overflowRight: expect.any(Number) }),
+        expect.objectContaining({ selector: ".expense-list", overflowRight: expect.any(Number) })
+      ])
+    );
+    for (const child of desktopContainedChildren) {
+      expect(child.overflowRight).toBeLessThanOrEqual(0);
+    }
 
     await page.setViewportSize({ width: 390, height: 844 });
 
