@@ -260,6 +260,9 @@ test.describe("expense tracker critical flows", () => {
 
     await page.getByTestId("filter-category").selectOption("transport");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeHidden();
+
+    await page.getByTestId("filter-category").selectOption("food");
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
     await expect(page.getByTestId("filter-category")).toHaveValue("");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Coffee" })).toBeVisible();
@@ -375,11 +378,27 @@ test.describe("expense tracker critical flows", () => {
     await page.getByLabel("Date", { exact: true }).fill("2026-03-01");
     await page.getByRole("button", { name: "Add expense" }).click();
 
+    await page.getByLabel("Amount").fill("45.00");
+    await page.getByLabel("Description").fill("Previous month transit");
+    await page.getByTestId("expense-category").selectOption("transport");
+    await page.getByLabel("Date", { exact: true }).fill("2026-05-20");
+    await page.getByRole("button", { name: "Add expense" }).click();
+
     await page.getByLabel("Period").selectOption("last7");
     await expect(page.getByTestId("expense-description").filter({ hasText: "Recent lunch" })).toBeVisible();
     await expect(
       page.getByTestId("expense-description").filter({ hasText: "Older subscription" })
     ).toBeHidden();
+    await expect(
+      page.getByTestId("expense-description").filter({ hasText: "Previous month transit" })
+    ).toBeHidden();
+
+    await page.getByLabel("Period").selectOption("lastMonth");
+    await expect(
+      page.getByTestId("expense-description").filter({ hasText: "Previous month transit" })
+    ).toBeVisible();
+    await expect(page.getByTestId("expense-description").filter({ hasText: "Recent lunch" })).toBeHidden();
+    await expect(page.getByTestId("monthly-total")).toHaveText("$45.00");
 
     await page.getByLabel("Period").selectOption("custom");
     await page.getByLabel("From date").fill("2026-01-01");

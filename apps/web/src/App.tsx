@@ -23,7 +23,6 @@ import {
   getMonthlyGoalSpend,
   getBudgetSummaries,
   getCategoryBreakdown,
-  getMonthlyTotal,
   getMonthlyTrends,
   normalizeFinancialGoalInput,
   normalizeCustomDateRange,
@@ -232,7 +231,7 @@ export const App = () => {
     [categories]
   );
 
-  const monthlyTotalCents = getMonthlyTotal(visibleExpenses, "2026-06");
+  const visibleTotalCents = visibleExpenses.reduce((total, expense) => total + expense.amountCents, 0);
   const breakdown = getCategoryBreakdown(visibleExpenses).map((item) => ({
     ...item,
     categoryName: categoryNameById[item.categoryId] ?? item.categoryId
@@ -258,7 +257,7 @@ export const App = () => {
     goal
   });
   const report = buildReportViewModel({
-    monthlyTotalCents,
+    monthlyTotalCents: visibleTotalCents,
     breakdown,
     locale: "en-US",
     currency: "USD"
@@ -846,8 +845,7 @@ export const App = () => {
               <button
                 className="secondary-action"
                 type="button"
-                aria-hidden="true"
-                tabIndex={-1}
+                aria-label="Clear filters"
                 disabled={isLoadingDashboard}
                 onClick={clearFilters}
               >
