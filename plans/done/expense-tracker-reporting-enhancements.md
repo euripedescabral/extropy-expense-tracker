@@ -1,3 +1,10 @@
+---
+name: expense-tracker-reporting-enhancements
+status: completed
+created: 2026-06-14
+source: new
+---
+
 # Expense Tracker Reporting Enhancements
 
 ## Layer 1 - Core Configuration
@@ -115,7 +122,4 @@ Decisions:
 Blast radius: shared reporting functions, authenticated Lambda router, DynamoDB repository, main React app, smoke script, README assets.
 
 Resume steps:
-- Commit and push the feature branch/main update.
-- Deploy CDK stack from CloudShell because local AWS credentials are expired.
-- Upload the new production web bundle to S3 and invalidate CloudFront.
-- Run `pnpm run smoke:live` and a browser smoke on the live CloudFront URL.
+- Completed and archived in `plans/done`.

@@ -10,3 +10,4 @@
 - 2026-06-14: Reorganized dashboard and report layout into stable responsive regions with E2E coverage for desktop/mobile overflow.
 - 2026-06-14: Added web-layer currency masks for all money inputs with unit and desktop/mobile E2E coverage for normalized API payloads.
 - 2026-06-14: Added a persistent header mood chip so financial mood remains visible across dashboard/report views.
+- 2026-06-19: Moved completed foundation, implementation, deploy/docs, and reporting plans from `plans/active` to `plans/done` during documentation/privacy reconciliation.

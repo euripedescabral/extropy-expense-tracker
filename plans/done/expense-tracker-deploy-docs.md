@@ -1,6 +1,6 @@
 ---
 name: expense-tracker-deploy-docs
-status: in-progress
+status: completed
 created: 2026-06-14
 source: new
 ---
@@ -9,7 +9,7 @@ source: new
 
 ## Layer 1 — Core Configuration
 
-**Context:** The take-home requires a public GitHub repository URL, live app URL, accessible API endpoints, README, env examples, and AWS deployment. This plan packages the finished implementation for review.
+**Context:** The take-home requires GitHub repository access, live app URL, accessible API endpoints, README, env examples, and AWS deployment. This plan packages the finished implementation for review.
 
 **Objective:** Add CDK infrastructure, env templates, README setup/deploy documentation, and submission-ready metadata.
 
@@ -74,8 +74,8 @@ No new UI behavior; documentation must describe the existing UI flows from the i
 
 ## Layer 5 — Meta
 
-**Decisions:** Deployed URL placeholders remain explicit until a real deploy is performed.
+**Decisions:** Submission URLs are documented after deployment; secrets, AWS account identifiers, and generated CDK outputs remain out of git.
 
 **Blast Radius:** Infrastructure and docs only.
 
-**Session Continuity:** Run the full gate suite before marking this plan done.
+**Session Continuity:** Completed and archived in `plans/done`.

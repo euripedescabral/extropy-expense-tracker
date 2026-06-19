@@ -107,7 +107,6 @@ After deployment, upload `apps/web/dist` to the emitted S3 bucket and set `VITE_
 - UI flow recording, edit/date filter: [docs/assets/ui-flow-edit-date-filter.webm](docs/assets/ui-flow-edit-date-filter.webm)
 - UI flow recording, loading states: [docs/assets/ui-flow-loading-states.webm](docs/assets/ui-flow-loading-states.webm)
 - UI flow recording, report/budget/export: [docs/assets/ui-flow-report-budgets-export.webm](docs/assets/ui-flow-report-budgets-export.webm)
-- Video presentation script: [docs/video-presentation-script.md](docs/video-presentation-script.md)
 - Dashboard summary: [docs/assets/dashboard-summary-desktop.png](docs/assets/dashboard-summary-desktop.png)
 - Detailed report desktop: [docs/assets/detailed-report-desktop.png](docs/assets/detailed-report-desktop.png)
 - Detailed report mobile: [docs/assets/detailed-report-mobile.png](docs/assets/detailed-report-mobile.png)

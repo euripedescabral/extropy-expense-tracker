@@ -87,7 +87,7 @@ After deploy, record the emitted outputs locally:
 - `DistributionId`
 - `WebUrl`
 
-Do not commit account-specific output values unless they are intended for the public submission README.
+Do not commit account-specific output values unless they are intended for the submission README.
 
 ## CloudShell CDK Deploy Fallback
 
