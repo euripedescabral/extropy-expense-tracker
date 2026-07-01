@@ -36,6 +36,7 @@ type FixedExpense = {
 };
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const fixedToday = "2026-06-15";
 
 const expectNoDirectChildOverlap = async (page: Page, selectors: string[]) => {
   const overlapReport = await page.evaluate((targetSelectors) => {
@@ -82,6 +83,8 @@ const expectNoDirectChildOverlap = async (page: Page, selectors: string[]) => {
 
 test.describe("expense tracker critical flows", () => {
   test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(`${fixedToday}T12:00:00.000Z`));
+
     const expenses: Expense[] = [];
     const categories: Category[] = [
       { id: "food", name: "Food", kind: "system" },
@@ -414,7 +417,7 @@ test.describe("expense tracker critical flows", () => {
     await page.getByLabel("Amount").fill("18.00");
     await page.getByLabel("Description").fill("Recent lunch");
     await page.getByTestId("expense-category").selectOption("food");
-    await page.getByLabel("Date", { exact: true }).fill(new Date().toISOString().slice(0, 10));
+    await page.getByLabel("Date", { exact: true }).fill(fixedToday);
     await page.getByRole("button", { name: "Add expense" }).click();
 
     await page.getByLabel("Amount").fill("45.00");
